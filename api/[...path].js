@@ -27,25 +27,6 @@ module.exports = async (req, res) => {
       return send(res, 200, { ok: true });
     }
 
-    if (path === '/signup' && method === 'POST') {
-      const { name = '', email = '', password = '' } = await readBody(req);
-      const cleanName = name.trim(), cleanEmail = email.trim().toLowerCase();
-      if (!cleanName) return send(res, 400, { error: 'Enter your full name.' });
-      if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) return send(res, 400, { error: 'Enter a valid email address.' });
-      if (password.length < 8) return send(res, 400, { error: 'Use a password with at least 8 characters.' });
-      if ((await db.query('SELECT 1 FROM users WHERE email=$1', [cleanEmail])).rows.length) {
-        return send(res, 400, { error: 'An account with that email already exists. Log in instead.' });
-      }
-      const { rows: [{ id }] } = await db.query(
-        `INSERT INTO users (member_no, name, email, password_hash) VALUES ('PENDING',$1,$2,$3) RETURNING id`,
-        [cleanName, cleanEmail, await hashPassword(password)]
-      );
-      await db.query('UPDATE users SET member_no=$1 WHERE id=$2', ['M-' + (1000 + id), id]);
-      const { token, maxAge } = await createSession(id);
-      setSessionCookie(res, token, maxAge);
-      return send(res, 200, { ok: true });
-    }
-
     if (path === '/logout' && method === 'POST') {
       await destroySession(parseCookies(req).sh_session);
       clearSessionCookie(res);
@@ -92,6 +73,26 @@ module.exports = async (req, res) => {
 
     if (path === '/members-list' && method === 'GET') {
       return send(res, 200, { members: (await db.query('SELECT id, name FROM users ORDER BY name')).rows });
+    }
+
+    // admin-only: add a new member account. Doesn't touch the admin's own session —
+    // it just creates the row, so the new person logs in separately with what the admin gives them.
+    if (path === '/members' && method === 'POST') {
+      if (!adminOnly(user, res)) return;
+      const { name = '', email = '', password = '' } = await readBody(req);
+      const cleanName = name.trim(), cleanEmail = email.trim().toLowerCase();
+      if (!cleanName) return send(res, 400, { error: 'Enter their full name.' });
+      if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) return send(res, 400, { error: 'Enter a valid email address.' });
+      if (password.length < 8) return send(res, 400, { error: 'Use a password with at least 8 characters.' });
+      if ((await db.query('SELECT 1 FROM users WHERE email=$1', [cleanEmail])).rows.length) {
+        return send(res, 400, { error: 'An account with that email already exists.' });
+      }
+      const { rows: [{ id }] } = await db.query(
+        `INSERT INTO users (member_no, name, email, password_hash) VALUES ('PENDING',$1,$2,$3) RETURNING id`,
+        [cleanName, cleanEmail, await hashPassword(password)]
+      );
+      await db.query('UPDATE users SET member_no=$1 WHERE id=$2', ['M-' + (1000 + id), id]);
+      return send(res, 200, { ok: true });
     }
 
     // ---------- events ----------
