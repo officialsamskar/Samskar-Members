@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#6E1F2B">
+<meta name="color-scheme" content="light dark">
+<title>Samskar Members</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%AA%94%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FBF3E6; --surface:#FFFFFF; --ink:#2B1B12; --muted:#5A4A3D; --faint:#8C7862;
+  --line:#DBBE83; --line-soft:#EEDFBA;
+  --btn:#6E1F2B; --btn-hover:#4A141C; --on-btn:#E7C77E;
+  --strong:#4A141C; --tint:#F2E0DE;
+  --gold-soft:#F3E6C9; --gold-ink:#8A6A1F;
+  --rust:#A8402E; --rust-soft:#F3DFD9;
+  --card:#6E1F2B; --on-card:#F6E7C4; --brass:#E7C77E;
+  --shadow:rgba(74,20,28,.08);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#1B1013; --surface:#2A191D; --ink:#F6EBDA; --muted:#CDB9A0; --faint:#A08C76;
+    --line:#5E4629; --line-soft:#3B2A25;
+    --btn:#8E2A3B; --btn-hover:#A5364A; --on-btn:#FBE7B0;
+    --strong:#F0D08A; --tint:#3B1D24;
+    --gold-soft:#372B18; --gold-ink:#E7C77E;
+    --rust:#F0A08C; --rust-soft:#41211C;
+    --card:#4F1822; --on-card:#F6E7C4; --brass:#E7C77E;
+    --shadow:rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1B1013; --surface:#2A191D; --ink:#F6EBDA; --muted:#CDB9A0; --faint:#A08C76;
+  --line:#5E4629; --line-soft:#3B2A25;
+  --btn:#8E2A3B; --btn-hover:#A5364A; --on-btn:#FBE7B0;
+  --strong:#F0D08A; --tint:#3B1D24;
+  --gold-soft:#372B18; --gold-ink:#E7C77E;
+  --rust:#F0A08C; --rust-soft:#41211C;
+  --card:#4F1822; --on-card:#F6E7C4; --brass:#E7C77E;
+  --shadow:rgba(0,0,0,.35);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 "Jost",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+::selection{background:var(--tint)}
+h1,h2,h3{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;line-height:1.15;margin:0;color:var(--ink)}
+h1{font-size:2rem;margin-bottom:16px}
+h2{font-size:1.3rem;margin-bottom:10px}
+h3{font-size:1.15rem}
+p{margin:0 0 8px}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--strong);outline-offset:2px}
+
+/* brand */
+.brand{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-weight:600;font-size:1.3rem;color:var(--strong)}
+.tagline{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;color:var(--muted);font-size:1rem;margin-bottom:14px}
+
+/* layout */
+.side{display:none}
+.top{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--surface);border-bottom:1px solid var(--line);z-index:5}
+.main{padding:20px 16px 100px;max-width:860px}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:10}
+.tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px 8px;background:none;border:0;border-top:3px solid transparent;color:var(--muted);font-size:.72rem;min-height:56px;cursor:pointer}
+.tabs button[aria-current="page"]{color:var(--strong);font-weight:500;border-top-color:var(--btn)}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+@media (min-width:820px){
+  .shell{display:grid;grid-template-columns:230px 1fr}
+  .side{display:flex;flex-direction:column;background:var(--surface);border-right:1px solid var(--line);padding:24px 0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .side .brand{padding:0 24px 4px;font-size:1.4rem}
+  .side .who{padding:0 24px 16px;font-size:.8rem;color:var(--muted);border-bottom:1px solid var(--line-soft);margin-bottom:10px}
+  .side .who b{color:var(--ink);font-weight:500}
+  .side button{display:flex;align-items:center;gap:10px;background:none;border:0;border-left:3px solid transparent;padding:11px 24px;cursor:pointer;color:var(--muted);text-align:left;font-size:.95rem}
+  .side button:hover{background:var(--tint);color:var(--ink)}
+  .side button[aria-current="page"]{border-left-color:var(--btn);background:var(--tint);color:var(--strong);font-weight:500}
+  .side .grow{flex:1}
+  .tabs,.top{display:none}
+  .main{padding:40px 44px}
+}
+
+/* controls */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:999px;border:1px solid var(--btn);background:var(--btn);color:var(--on-btn);font-weight:500;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background .15s ease}
+.btn:hover{background:var(--btn-hover);border-color:var(--btn-hover);transform:translateY(-1px);box-shadow:0 8px 20px rgba(74,20,28,.22)}
+.btn:disabled{background:var(--line-soft);border-color:var(--line);color:var(--faint);cursor:not-allowed;transform:none;box-shadow:none}
+.btn.ghost{background:var(--surface);border-color:var(--line);color:var(--ink)}
+.btn.ghost:hover{border-color:var(--btn);color:var(--strong);background:var(--surface);box-shadow:none}
+.btn.danger{background:transparent;border-color:var(--rust);color:var(--rust)}
+.btn.danger:hover{background:var(--rust-soft);box-shadow:none}
+.btn.sm{min-height:36px;padding:0 14px;font-size:.88rem}
+.linkbtn{background:none;border:0;color:var(--strong);font-weight:500;cursor:pointer;padding:6px 0;min-height:36px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+label{display:block;font-weight:500;font-size:.85rem;color:var(--muted);margin:14px 0 5px}
+input[type=text],input[type=email],input[type=password],input[type=tel],input[type=date],input[type=number],input[type=search],select,textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--btn)}
+textarea{min-height:88px;resize:vertical}
+.check{display:flex;align-items:center;gap:10px;font-weight:400;margin:14px 0;color:var(--ink);font-size:.9rem}
+.check input{width:20px;height:20px;accent-color:var(--btn)}
+.err{color:var(--rust);font-size:.85rem;min-height:1.2em;margin:8px 0 0}
+form .btn{margin-top:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* surfaces */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:12px}
+.grid{display:grid;gap:12px;margin-top:14px}
+@media (min-width:820px){.grid{grid-template-columns:1fr 1fr}}
+.grid .panel{margin:0}
+.list{list-style:none;margin:0;padding:0}
+.list>li{padding:13px 0;border-top:1px solid var(--line-soft)}
+.list>li:first-child{border-top:0;padding-top:0}
+.pill{display:inline-block;padding:2px 11px;border-radius:999px;font-size:.78rem;font-weight:500;line-height:1.5}
+.pill.good{background:var(--tint);color:var(--strong)}
+.pill.bad{background:var(--rust-soft);color:var(--rust)}
+.pill.wait{background:var(--gold-soft);color:var(--gold-ink)}
+.pill.off{background:var(--line-soft);color:var(--faint)}
+details.admin{border:1px dashed var(--line);border-radius:10px;padding:8px 16px;margin-bottom:12px;background:var(--surface)}
+details.admin summary{cursor:pointer;font-weight:500;min-height:36px;display:flex;align-items:center;color:var(--strong)}
+.tag{display:inline-block;font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:.78rem;letter-spacing:.03em;color:var(--strong);background:var(--gold-soft);border:1px solid var(--line);border-radius:999px;padding:0 8px}
+
+/* membership card */
+.idcard{background:var(--card);color:var(--on-card);border-radius:12px;padding:22px 22px 20px;position:relative;border:1px solid var(--brass);box-shadow:0 14px 34px var(--shadow)}
+.idcard::after{content:"";position:absolute;inset:7px;border:1px solid rgba(231,199,126,.4);border-radius:7px;pointer-events:none}
+.idrow{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.idrow.low{margin-top:20px;font-size:.85rem;color:rgba(246,231,196,.8);flex-wrap:wrap}
+.org{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-weight:600;font-size:1.3rem;color:var(--brass)}
+.idname{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:2.1rem;line-height:1.1;margin-top:24px}
+.idno{font-family:"Cormorant Garamond",Georgia,serif;font-weight:700;letter-spacing:.06em;font-size:1.15rem;color:var(--brass)}
+.idcard .pill.good{background:rgba(231,199,126,.18);color:var(--brass)}
+.idcard .pill.bad{background:#F3DFD9;color:#A8402E}
+
+/* events */
+.ev{display:flex;gap:14px}
+.date{flex:0 0 56px;height:64px;border-radius:10px;background:var(--gold-soft);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:"Cormorant Garamond",Georgia,serif;color:var(--strong)}
+.date b{font-size:1.6rem;line-height:1;font-weight:700}
+.date span{font-size:.85rem;color:var(--muted)}
+.evb{flex:1;min-width:0}
+
+/* directory */
+.person{display:flex;gap:12px;align-items:center}
+.av{flex:0 0 42px;height:42px;border-radius:50%;background:var(--gold-soft);border:1px solid var(--line);color:var(--strong);display:grid;place-items:center;font-weight:700;font-family:"Cormorant Garamond",Georgia,serif;font-size:1.05rem}
+.person a{color:var(--strong)}
+
+/* auth */
+.auth{width:calc(100% - 32px);max-width:400px;margin:24px auto 48px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:32px 26px;box-shadow:0 14px 34px var(--shadow)}
+.auth .brand{font-size:1.7rem;margin-bottom:0}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:18px 0 6px}
+.seg button{min-height:42px;border:1px solid var(--line);border-radius:999px;background:var(--surface);cursor:pointer;font-weight:400;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--tint);border-color:var(--btn);color:var(--strong);font-weight:500}
+.demo{margin-top:20px;padding:12px 14px;border-radius:10px;background:var(--gold-soft);border:1px dashed var(--line);font-size:.88rem}
+
+/* sheet + toast */
+.scrim{position:fixed;inset:0;background:rgba(33,20,16,.5);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--surface);border:1px solid var(--line);border-radius:14px 14px 0 0;padding:22px 22px calc(22px + env(safe-area-inset-bottom,0px));max-width:520px;margin:0 auto}
+@media (min-width:820px){.sheet{bottom:auto;top:50%;transform:translateY(-50%);border-radius:14px}}
+.note{font-size:.88rem;color:var(--muted)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:.88rem;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;box-shadow:0 4px 16px rgba(74,20,28,.25)}
+#toast.on{opacity:1}
+@media (min-width:820px){#toast{bottom:32px}}
+.moreitem{display:flex;align-items:center;gap:14px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px;cursor:pointer;text-align:left;min-height:56px;font-weight:500;color:var(--ink)}
+.moreitem:hover{border-color:var(--btn)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+var ORG = "Samskar";
+var LEAVE_TYPES = ["Casual","Medical","Vacation","Family","Other"];
+var DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+var $ = function(s){ return document.querySelector(s); };
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function z(n){ return String(n).padStart(2,"0"); }
+function iso(d){ return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); }
+var TODAY = iso(new Date());
+function fmtDate(s){ try{ return new Date(s+"T00:00:00").toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}); }catch(e){ return s; } }
+function fmtTime(t){ if(!t) return ""; var p=t.split(":"); var h=Number(p[0]), m=p[1]; var ap=h>=12?"pm":"am"; var h12=h%12; if(h12===0)h12=12; return h12+":"+m+" "+ap; }
+function initials(n){ return String(n).split(/\s+/).filter(Boolean).slice(0,2).map(function(w){ return w[0].toUpperCase(); }).join(""); }
+function dayCount(a,b){ return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000)+1; }
+
+var ICONS = {
+  home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  events:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  notices:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
+  timetable:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 4v3M16 4v3M8 13h2M8 17h2M14 13h2M14 17h2"/>',
+  directory:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14a5 5 0 0 1 4.5 5"/>',
+  leave:'<path d="M6 3h9l4 4v14H6z"/><path d="M9 13l2 2 4-4"/>',
+  profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  more:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+  logout:'<path d="M10 4H5v16h5M15 8l4 4-4 4M19 12H9"/>'
+};
+function ico(n){ return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">'+ICONS[n]+'</svg>'; }
+
+async function api(path, opts){
+  opts = opts || {};
+  var headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
+  var res = await fetch("/api"+path, Object.assign({credentials:"same-origin"}, opts, {headers:headers}));
+  var data = {};
+  try{ data = await res.json(); }catch(e){}
+  if(!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+  return data;
+}
+
+var state = { user:null, view:"home", authTab:"login", cache:{} };
+
+async function loadMe(){
+  var r = await api("/me");
+  state.user = r.user;
+}
+
+var toastT;
+function toast(m){ var t=$("#toast"); t.textContent=m; t.classList.add("on"); clearTimeout(toastT); toastT=setTimeout(function(){ t.classList.remove("on"); },2600); }
+
+function authView(){
+  var login = state.authTab === "login";
+  return '<div class="auth"><div class="brand">'+esc(ORG)+'</div><div class="tagline">crafting traditions with trend</div>'+
+  '<p class="muted">'+(login?"Log in to your member account.":"Create your member account.")+'</p>'+
+  '<div class="seg" role="group" aria-label="Log in or join"><button data-a="tab" data-v="login" aria-pressed="'+login+'">Log in</button><button data-a="tab" data-v="join" aria-pressed="'+(!login)+'">Join</button></div>'+
+  (login ?
+   '<form data-f="login" autocomplete="on"><label for="em">Email</label><input id="em" name="email" type="email" autocomplete="username" required>'+
+   '<label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="current-password" required>'+
+   '<p class="err" role="alert"></p><button class="btn" style="width:100%">Log in</button></form>' :
+   '<form data-f="join"><label for="nm">Full name</label><input id="nm" name="name" type="text" autocomplete="name" required>'+
+   '<label for="em">Email</label><input id="em" name="email" type="email" autocomplete="username" required>'+
+   '<label for="pw">Password (8 characters or more)</label><input id="pw" name="password" type="password" autocomplete="new-password" minlength="8" required>'+
+   '<p class="err" role="alert"></p><button class="btn" style="width:100%">Create account</button></form>')+
+  '</div>';
+}
+
+function nav(u){
+  var items = [["home","Home"],["events","Events"],["notices","Notices"],["timetable","Timetable"],["directory","Directory"],["leave","Leave"],["profile","Profile"]];
+  return '<nav class="side" aria-label="Main"><div class="brand">'+esc(ORG)+'</div>'+
+    '<div class="who">Signed in as <b>'+esc(u.name)+'</b><br>'+(u.role==="admin"?"Committee":"Member")+'</div>'+
+    items.map(function(i){ return '<button data-a="nav" data-v="'+i[0]+'"'+(state.view===i[0]?' aria-current="page"':'')+'>'+ico(i[0])+i[1]+'</button>'; }).join("")+
+    '<div class="grow"></div><button data-a="logout">'+ico("logout")+'Log out</button></nav>';
+}
+function tabs(){
+  var t = [["home","Home"],["events","Events"],["notices","Notices"],["timetable","Timetable"],["more","More"]];
+  var moreOn = ["more","directory","leave","profile"].indexOf(state.view) > -1;
+  return '<nav class="tabs" aria-label="Main">'+t.map(function(i){
+    var on = i[0]==="more" ? moreOn : state.view===i[0];
+    return '<button data-a="nav" data-v="'+i[0]+'"'+(on?' aria-current="page"':'')+'>'+ico(i[0])+i[1]+'</button>';
+  }).join("")+'</nav>';
+}
+
+async function viewHome(u){
+  var ev = await api("/events");
+  var going = ev.events.filter(function(e){ return (e.going||[]).indexOf(u.id)>-1; }).sort(function(a,b){ return a.event_date.localeCompare(b.event_date); });
+  var nr = await api("/notices");
+  var n = nr.notices[0];
+  var lv = await api("/leaves");
+  var pend = lv.mine.filter(function(l){ return l.status==="pending"; }).length;
+  var adminPend = u.role==="admin" ? lv.pending.length : 0;
+
+  return '<h1>Hello, '+esc(u.name.split(" ")[0])+'</h1>'+
+  '<section class="idcard" aria-label="Membership card"><div class="idrow"><span class="org">'+esc(ORG)+'</span><span class="pill good">Member</span></div>'+
+  '<div class="idname">'+esc(u.name)+'</div><div class="idrow low"><span class="idno">'+esc(u.memberNo)+'</span><span>Member since '+esc(fmtDate(u.since))+'</span></div></section>'+
+  '<div class="grid">'+
+  '<article class="panel"><h2>Your events</h2>'+(going.length ?
+     '<ul class="list">'+going.slice(0,3).map(function(e){ return '<li><b>'+esc(e.title)+'</b><br><span class="muted small">'+esc(fmtDate(e.event_date))+', '+esc(e.event_time)+'</span></li>'; }).join("")+'</ul>' :
+     '<p class="muted">You have not signed up for anything yet.</p><button class="btn ghost sm" data-a="nav" data-v="events">Browse events</button>')+'</article>'+
+  '<article class="panel"><h2>Latest notice</h2>'+(n ? '<h3>'+esc(n.title)+'</h3><p class="muted small">'+esc(fmtDate(n.created_at.slice(0,10)))+'</p><p>'+esc(n.body.length>110?n.body.slice(0,110)+"...":n.body)+'</p><button class="linkbtn" data-a="nav" data-v="notices">Read all notices</button>' : '<p class="muted">No notices yet.</p>')+'</article>'+
+  '<article class="panel"><h2>Leave</h2><p>'+(pend?pend+' request'+(pend===1?"":"s")+' waiting for approval.':'No requests waiting.')+'</p>'+
+     (adminPend?'<p><b>'+adminPend+'</b> request'+(adminPend===1?"":"s")+' need your decision.</p>':'')+
+     '<button class="btn ghost sm" data-a="nav" data-v="leave">'+(adminPend?"Review requests":"Apply for leave")+'</button></article>'+
+  '<article class="panel"><h2>Timetable</h2><p class="muted">See the weekly schedule for members and shared rooms.</p><button class="btn ghost sm" data-a="nav" data-v="timetable">Open timetable</button></article>'+
+  '</div>';
+}
+
+function evItem(e,u){
+  var going = e.going||[], mine = going.indexOf(u.id)>-1, full = going.length>=e.cap;
+  var d = new Date(e.event_date+"T00:00:00");
+  var btn = mine ? '<button class="btn ghost sm" data-a="rsvp" data-id="'+e.id+'">Cancel sign-up</button>' :
+            full ? '<button class="btn sm" disabled>Event full</button>' :
+            '<button class="btn sm" data-a="rsvp" data-id="'+e.id+'">Sign up</button>';
+  return '<li class="ev"><div class="date"><b>'+d.getDate()+'</b><span>'+esc(d.toLocaleDateString(undefined,{month:"short"}))+'</span></div><div class="evb">'+
+    '<h3>'+esc(e.title)+'</h3><p class="muted small">'+esc(e.event_time)+' at '+esc(e.place)+'</p><p>'+esc(e.about||"")+'</p>'+
+    '<p class="small muted">'+going.length+' of '+e.cap+' going'+(mine?' &middot; <b style="color:var(--strong)">You are going</b>':'')+'</p>'+
+    '<div class="row">'+btn+(u.role==="admin"?'<button class="btn danger sm" data-a="delevent" data-id="'+e.id+'">Remove</button>':'')+'</div></div></li>';
+}
+async function viewEvents(u){
+  var r = await api("/events");
+  var list = r.events.slice().sort(function(a,b){ return a.event_date.localeCompare(b.event_date); });
+  return '<h1>Events</h1>'+
+  (u.role==="admin" ? '<details class="admin"><summary>Add an event</summary><form data-f="event"><label for="et">Title</label><input id="et" name="title" type="text" required>'+
+    '<div class="two"><div><label for="ed">Date</label><input id="ed" name="date" type="date" min="'+TODAY+'" required></div><div><label for="etm">Time</label><input id="etm" name="time" type="text" placeholder="6:30 pm" required></div></div>'+
+    '<div class="two"><div><label for="ep">Place</label><input id="ep" name="place" type="text" required></div><div><label for="ec">Seats</label><input id="ec" name="cap" type="number" min="1" value="20" required></div></div>'+
+    '<label for="ea">Details</label><textarea id="ea" name="about"></textarea><p class="err" role="alert"></p><button class="btn">Add event</button></form></details>' : '')+
+  '<div class="panel">'+(list.length ? '<ul class="list">'+list.map(function(e){ return evItem(e,u); }).join("")+'</ul>' : '<p class="muted">No upcoming events. Check back soon.</p>')+'</div>';
+}
+
+async function viewNotices(u){
+  var r = await api("/notices");
+  var list = r.notices;
+  return '<h1>Notices</h1>'+
+  (u.role==="admin" ? '<details class="admin"><summary>Post a notice</summary><form data-f="notice"><label for="nt">Title</label><input id="nt" name="title" type="text" required>'+
+    '<label for="nb">Message</label><textarea id="nb" name="body" required></textarea><label class="check"><input type="checkbox" name="pinned"> Pin to the top</label>'+
+    '<p class="err" role="alert"></p><button class="btn">Post notice</button></form></details>' : '')+
+  (list.length ? list.map(function(n){
+    return '<article class="panel"><div class="row" style="justify-content:space-between"><span class="small muted">'+esc(fmtDate(n.created_at.slice(0,10)))+'</span>'+(n.pinned?'<span class="pill wait">Pinned</span>':'')+'</div><h3 style="margin:4px 0 6px">'+esc(n.title)+'</h3><p style="white-space:pre-wrap">'+esc(n.body)+'</p>'+
+      (u.role==="admin"?'<button class="btn danger sm" data-a="delnotice" data-id="'+n.id+'">Delete</button>':'')+'</article>';
+  }).join("") : '<div class="panel"><p class="muted">No notices yet.</p></div>');
+}
+
+function dirRows(list){
+  if(!list.length) return '<p class="muted">No members match that search.</p>';
+  return '<ul class="list">'+list.map(function(m){
+    return '<li class="person"><div class="av" aria-hidden="true">'+esc(initials(m.name))+'</div><div><b>'+esc(m.name)+'</b>'+(m.role==="admin"?' <span class="tag">Committee</span>':'')+'<br><span class="small muted">'+esc(m.unit||"Member")+'</span><br><span class="small"><a href="mailto:'+esc(m.email)+'">'+esc(m.email)+'</a>'+(m.phone?' &middot; '+esc(m.phone):'')+'</span></div></li>';
+  }).join("")+'</ul>';
+}
+async function viewDirectory(){
+  var r = await api("/directory");
+  return '<h1>Directory</h1><label for="q" style="margin-top:0">Search by name or unit</label><input id="q" type="search" data-input="dir" placeholder="Start typing">'+
+    '<div class="panel" style="margin-top:12px" id="dirList">'+dirRows(r.members)+'</div><p class="small muted">Only members who chose to be listed appear here. Change this in Profile.</p>';
+}
+
+async function viewLeave(u){
+  var r = await api("/leaves");
+  var mine = r.mine;
+  var html = '<h1>Leave</h1><div class="panel"><h2>Apply for leave</h2><form data-f="leave"><label for="lt">Type</label><select id="lt" name="type">'+LEAVE_TYPES.map(function(t){ return '<option>'+t+'</option>'; }).join("")+'</select>'+
+    '<div class="two"><div><label for="lf">From</label><input id="lf" name="from" type="date" min="'+TODAY+'" required></div><div><label for="ltt">To</label><input id="ltt" name="to" type="date" min="'+TODAY+'" required></div></div>'+
+    '<label for="lr">Reason</label><textarea id="lr" name="reason" required></textarea><p class="err" role="alert"></p><button class="btn">Send request</button></form></div>';
+  html += '<div class="panel"><h2>Your requests</h2>'+(mine.length ? '<ul class="list">'+mine.map(function(l){
+    var cls = {pending:"wait",approved:"good",declined:"bad",cancelled:"off"}[l.status];
+    return '<li><div class="row" style="justify-content:space-between"><b>'+esc(l.leave_type)+' leave</b><span class="pill '+cls+'">'+esc(l.status.charAt(0).toUpperCase()+l.status.slice(1))+'</span></div><p class="small muted" style="margin:2px 0">'+esc(fmtDate(l.from_date))+' to '+esc(fmtDate(l.to_date))+' ('+dayCount(l.from_date,l.to_date)+' '+(dayCount(l.from_date,l.to_date)===1?"day":"days")+')</p><p style="margin:0 0 6px">'+esc(l.reason)+'</p>'+
+      (l.status==="pending"?'<button class="btn ghost sm" data-a="leavecancel" data-id="'+l.id+'">Cancel request</button>':'')+'</li>';
+  }).join("")+'</ul>' : '<p class="muted">You have not applied for leave.</p>')+'</div>';
+  if(u.role==="admin"){
+    html += '<div class="panel"><h2>Waiting for your decision</h2>'+(r.pending.length ? '<ul class="list">'+r.pending.map(function(l){
+      return '<li><b>'+esc(l.user_name)+'</b> &middot; '+esc(l.leave_type)+'<p class="small muted" style="margin:2px 0">'+esc(fmtDate(l.from_date))+' to '+esc(fmtDate(l.to_date))+' ('+dayCount(l.from_date,l.to_date)+' '+(dayCount(l.from_date,l.to_date)===1?"day":"days")+')</p><p style="margin:0 0 8px">'+esc(l.reason)+'</p><div class="row"><button class="btn sm" data-a="approve" data-id="'+l.id+'">Approve</button><button class="btn danger sm" data-a="decline" data-id="'+l.id+'">Decline</button></div></li>';
+    }).join("")+'</ul>' : '<p class="muted">No requests waiting.</p>')+'</div>';
+  }
+  return html;
+}
+
+async function viewTimetable(u){
+  var tr = await api("/timetable");
+  var rr = await api("/resources");
+  var mr = await api("/members-list");
+  var byDay = {};
+  DAYS.forEach(function(_,i){ byDay[i] = []; });
+  tr.entries.forEach(function(e){ byDay[e.day_of_week].push(e); });
+
+  var addForm = '<div class="panel"><h2>Add to timetable</h2><form data-f="timetable">'+
+    '<label for="tsub">For</label><select id="tsub" name="subjectType" data-a="ttsub">'+
+      '<option value="person">Me</option>'+
+      (u.role==="admin" ? '<option value="person-other">Another member</option>' : '')+
+      '<option value="resource">A room / resource</option>'+
+    '</select>'+
+    (u.role==="admin" ? '<div id="ttPersonPick" style="display:none"><label for="tperson">Member</label><select id="tperson" name="subjectUserId">'+mr.members.map(function(m){ return '<option value="'+m.id+'">'+esc(m.name)+'</option>'; }).join("")+'</select></div>' : '')+
+    '<div id="ttResourcePick" style="display:none"><label for="tresource">Room / resource</label><select id="tresource" name="subjectResourceId">'+rr.resources.map(function(r){ return '<option value="'+r.id+'">'+esc(r.name)+'</option>'; }).join("")+'</select></div>'+
+    '<label for="ttitle">Title</label><input id="ttitle" name="title" type="text" placeholder="e.g. Design review" required>'+
+    '<div class="two"><div><label for="tday">Day</label><select id="tday" name="dayOfWeek">'+DAYS.map(function(d,i){ return '<option value="'+i+'">'+d+'</option>'; }).join("")+'</select></div><div><label for="tloc">Location</label><input id="tloc" name="location" type="text" placeholder="Optional"></div></div>'+
+    '<div class="two"><div><label for="tstart">Start</label><input id="tstart" name="start" type="text" placeholder="09:00" pattern="[0-2][0-9]:[0-5][0-9]" required></div><div><label for="tend">End</label><input id="tend" name="end" type="text" placeholder="10:00" pattern="[0-2][0-9]:[0-5][0-9]" required></div></div>'+
+    '<p class="small muted">Use 24-hour time, e.g. 09:00 and 17:30.</p>'+
+    '<p class="err" role="alert"></p><button class="btn">Add to timetable</button></form>'+
+    (u.role==="admin" ? '<details class="admin" style="margin-top:14px"><summary>Add a room / resource</summary><form data-f="resource"><label for="rname">Name</label><input id="rname" name="name" type="text" required><p class="err" role="alert"></p><button class="btn sm">Add resource</button></form></details>' : '')+
+    '</div>';
+
+  var days = DAYS.map(function(d,i){
+    var items = byDay[i].slice().sort(function(a,b){ return a.start_time.localeCompare(b.start_time); });
+    return '<div class="panel"><h2>'+d+'</h2>'+(items.length ? '<ul class="list">'+items.map(function(e){
+      var who = e.subject_type==="person" ? esc(e.person_name||"Member") : esc(e.resource_name||"Resource")+' <span class="tag">Room</span>';
+      var canDelete = u.role==="admin" || e.owner_id===u.id || e.subject_user_id===u.id;
+      return '<li><div class="row" style="justify-content:space-between"><b>'+esc(e.title)+'</b><span class="small muted">'+fmtTime(e.start_time)+' &ndash; '+fmtTime(e.end_time)+'</span></div><p class="small muted" style="margin:2px 0">'+who+(e.location?' &middot; '+esc(e.location):'')+'</p>'+
+        (canDelete ? '<button class="btn ghost sm" data-a="deltimetable" data-id="'+e.id+'">Remove</button>' : '')+'</li>';
+    }).join("")+'</ul>' : '<p class="muted">Nothing scheduled.</p>')+'</div>';
+  }).join("");
+
+  return '<h1>Timetable</h1><p class="muted">A shared weekly schedule for members and rooms.</p>'+addForm+days;
+}
+
+async function viewProfile(u){
+  return '<h1>Profile</h1><div class="panel"><h2>Your details</h2><form data-f="profile">'+
+    '<label for="pn">Full name</label><input id="pn" name="name" type="text" value="'+esc(u.name)+'" required>'+
+    '<label for="pe">Email</label><input id="pe" type="email" value="'+esc(u.email)+'" disabled>'+
+    '<div class="two"><div><label for="pp">Phone</label><input id="pp" name="phone" type="tel" value="'+esc(u.phone||"")+'"></div><div><label for="pu">Unit</label><input id="pu" name="unit" type="text" value="'+esc(u.unit||"")+'"></div></div>'+
+    '<label class="check"><input type="checkbox" name="listed"'+(u.listed?' checked':'')+'> Show me in the member directory</label>'+
+    '<p class="err" role="alert"></p><button class="btn">Save changes</button></form></div>'+
+    '<div class="panel"><h2>Change password</h2><form data-f="password"><label for="p1">Current password</label><input id="p1" name="current" type="password" autocomplete="current-password" required>'+
+    '<label for="p2">New password (8 characters or more)</label><input id="p2" name="next" type="password" autocomplete="new-password" minlength="8" required>'+
+    '<label for="p3">Confirm new password</label><input id="p3" name="again" type="password" autocomplete="new-password" required>'+
+    '<p class="err" role="alert"></p><button class="btn">Update password</button></form></div>'+
+    '<button class="btn danger" data-a="logout">Log out</button>';
+}
+
+function viewMore(u){
+  var items = [["directory","Directory"],["leave","Leave"],["profile","Profile"]];
+  return '<h1>More</h1>'+items.map(function(i){ return '<button class="moreitem" data-a="nav" data-v="'+i[0]+'">'+ico(i[0])+i[1]+'</button>'; }).join("")+
+    '<button class="moreitem" data-a="logout">'+ico("logout")+'Log out</button>';
+}
+
+var VIEWS = {home:viewHome,events:viewEvents,notices:viewNotices,timetable:viewTimetable,directory:viewDirectory,leave:viewLeave,profile:viewProfile,more:viewMore};
+
+async function render(){
+  var app = $("#app");
+  if(!state.user){ app.innerHTML = authView(); return; }
+  var u = state.user;
+  app.innerHTML = '<div class="shell">'+nav(u)+'<div><header class="top"><span class="brand">'+esc(ORG)+'</span><button class="linkbtn" data-a="logout">Log out</button></header><main class="main" id="main"><p class="muted">Loading&hellip;</p></main></div></div>'+tabs();
+  try{
+    var html = await (VIEWS[state.view] || viewHome)(u);
+    var main = $("#main");
+    if(main) main.innerHTML = html;
+  }catch(e){
+    var main2 = $("#main");
+    if(main2) main2.innerHTML = '<div class="panel"><p class="err" role="alert">'+esc(e.message)+'</p></div>';
+  }
+}
+
+async function go(v){ state.view = v; await render(); window.scrollTo(0,0); }
+
+document.addEventListener("click", async function(e){
+  var b = e.target.closest("[data-a]"); if(!b) return;
+  var a = b.dataset.a, id = Number(b.dataset.id);
+  if(a==="tab"){ state.authTab = b.dataset.v; render(); return; }
+  if(a==="nav"){ go(b.dataset.v); return; }
+  if(a==="logout"){
+    try{ await api("/logout", {method:"POST"}); }catch(err){}
+    state.user = null; state.view = "home"; render(); toast("You are logged out.");
+    return;
+  }
+  if(!state.user) return;
+  try{
+    if(a==="rsvp"){ await api("/events/"+id+"/rsvp", {method:"POST"}); toast("Updated."); await render(); return; }
+    if(a==="delevent"){ await api("/events/"+id, {method:"DELETE"}); toast("Event removed."); await render(); return; }
+    if(a==="delnotice"){ await api("/notices/"+id, {method:"DELETE"}); toast("Notice deleted."); await render(); return; }
+    if(a==="leavecancel"){ await api("/leaves/"+id, {method:"POST", body: JSON.stringify({action:"cancel"})}); toast("Request cancelled."); await render(); return; }
+    if(a==="approve"){ await api("/leaves/"+id, {method:"POST", body: JSON.stringify({action:"approve"})}); toast("Request approved."); await render(); return; }
+    if(a==="decline"){ await api("/leaves/"+id, {method:"POST", body: JSON.stringify({action:"decline"})}); toast("Request declined."); await render(); return; }
+    if(a==="deltimetable"){ await api("/timetable/"+id, {method:"DELETE"}); toast("Removed from timetable."); await render(); return; }
+  }catch(err){ toast(err.message); }
+});
+
+document.addEventListener("change", function(e){
+  if(e.target && e.target.id === "tsub"){
+    var v = e.target.value;
+    var pp = $("#ttPersonPick"), rp = $("#ttResourcePick");
+    if(pp) pp.style.display = (v==="person-other") ? "" : "none";
+    if(rp) rp.style.display = (v==="resource") ? "" : "none";
+  }
+});
+
+document.addEventListener("input", async function(e){
+  if(e.target.dataset && e.target.dataset.input==="dir"){
+    try{
+      var r = await api("/directory?q="+encodeURIComponent(e.target.value));
+      var box = $("#dirList"); if(box) box.innerHTML = dirRows(r.members);
+    }catch(err){}
+  }
+});
+
+document.addEventListener("submit", async function(e){
+  e.preventDefault();
+  var f = e.target, kind = f.dataset.f, d = Object.fromEntries(new FormData(f)), errEl = f.querySelector(".err");
+  function fail(m){ if(errEl) errEl.textContent = m; }
+  if(errEl) errEl.textContent = "";
+
+  try{
+    if(kind==="login"){
+      await api("/login", {method:"POST", body: JSON.stringify({email:d.email, password:d.password})});
+      await loadMe(); state.view="home"; await render(); return;
+    }
+    if(kind==="join"){
+      await api("/signup", {method:"POST", body: JSON.stringify({name:d.name, email:d.email, password:d.password})});
+      await loadMe(); state.view="home"; await render(); toast("Welcome to "+ORG+"."); return;
+    }
+    if(kind==="profile"){
+      await api("/profile", {method:"POST", body: JSON.stringify({name:d.name, phone:d.phone, unit:d.unit, listed: !!d.listed})});
+      await loadMe(); await render(); toast("Profile saved."); return;
+    }
+    if(kind==="password"){
+      await api("/password", {method:"POST", body: JSON.stringify({current:d.current, next:d.next, again:d.again})});
+      f.reset(); toast("Password updated."); return;
+    }
+    if(kind==="leave"){
+      await api("/leaves", {method:"POST", body: JSON.stringify({type:d.type, from:d.from, to:d.to, reason:d.reason})});
+      await render(); toast("Leave request sent."); return;
+    }
+    if(kind==="notice"){
+      await api("/notices", {method:"POST", body: JSON.stringify({title:d.title, body:d.body, pinned: !!d.pinned})});
+      await render(); toast("Notice posted."); return;
+    }
+    if(kind==="event"){
+      await api("/events", {method:"POST", body: JSON.stringify({title:d.title, date:d.date, time:d.time, place:d.place, cap:Number(d.cap), about:d.about})});
+      await render(); toast("Event added."); return;
+    }
+    if(kind==="resource"){
+      await api("/resources", {method:"POST", body: JSON.stringify({name:d.name})});
+      await render(); toast("Resource added."); return;
+    }
+    if(kind==="timetable"){
+      var subjectType = d.subjectType === "resource" ? "resource" : "person";
+      var payload = {
+        subjectType: subjectType,
+        subjectUserId: d.subjectType==="person-other" ? d.subjectUserId : undefined,
+        subjectResourceId: subjectType==="resource" ? d.subjectResourceId : undefined,
+        title: d.title, dayOfWeek: Number(d.dayOfWeek), start: d.start, end: d.end, location: d.location
+      };
+      await api("/timetable", {method:"POST", body: JSON.stringify(payload)});
+      f.reset(); await render(); toast("Added to timetable."); return;
+    }
+  }catch(err){ fail(err.message); }
+});
+
+(async function init(){
+  await loadMe();
+  await render();
+})();
+})();
+</script>
+</body>
+</html>
