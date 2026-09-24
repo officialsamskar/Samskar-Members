@@ -214,7 +214,7 @@ async function api(path, opts){
   return data;
 }
 
-var state = { user:null, view:"home", authTab:"login", cache:{} };
+var state = { user:null, view:"home", cache:{} };
 
 async function loadMe(){
   var r = await api("/me");
@@ -225,18 +225,12 @@ var toastT;
 function toast(m){ var t=$("#toast"); t.textContent=m; t.classList.add("on"); clearTimeout(toastT); toastT=setTimeout(function(){ t.classList.remove("on"); },2600); }
 
 function authView(){
-  var login = state.authTab === "login";
   return '<div class="auth"><div class="brand">'+esc(ORG)+'</div><div class="tagline">crafting traditions with trend</div>'+
-  '<p class="muted">'+(login?"Log in to your member account.":"Create your member account.")+'</p>'+
-  '<div class="seg" role="group" aria-label="Log in or join"><button data-a="tab" data-v="login" aria-pressed="'+login+'">Log in</button><button data-a="tab" data-v="join" aria-pressed="'+(!login)+'">Join</button></div>'+
-  (login ?
-   '<form data-f="login" autocomplete="on"><label for="em">Email</label><input id="em" name="email" type="email" autocomplete="username" required>'+
-   '<label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="current-password" required>'+
-   '<p class="err" role="alert"></p><button class="btn" style="width:100%">Log in</button></form>' :
-   '<form data-f="join"><label for="nm">Full name</label><input id="nm" name="name" type="text" autocomplete="name" required>'+
-   '<label for="em">Email</label><input id="em" name="email" type="email" autocomplete="username" required>'+
-   '<label for="pw">Password (8 characters or more)</label><input id="pw" name="password" type="password" autocomplete="new-password" minlength="8" required>'+
-   '<p class="err" role="alert"></p><button class="btn" style="width:100%">Create account</button></form>')+
+  '<p class="muted">Log in to your member account.</p>'+
+  '<form data-f="login" autocomplete="on"><label for="em">Email</label><input id="em" name="email" type="email" autocomplete="username" required>'+
+  '<label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="current-password" required>'+
+  '<p class="err" role="alert"></p><button class="btn" style="width:100%">Log in</button></form>'+
+  '<p class="small muted" style="margin-top:16px">New here? Ask an admin to add you — accounts aren\'t self-signup.</p>'+
   '</div>';
 }
 
@@ -321,9 +315,17 @@ function dirRows(list){
     return '<li class="person"><div class="av" aria-hidden="true">'+esc(initials(m.name))+'</div><div><b>'+esc(m.name)+'</b>'+(m.role==="admin"?' <span class="tag">Committee</span>':'')+'<br><span class="small muted">'+esc(m.unit||"Member")+'</span><br><span class="small"><a href="mailto:'+esc(m.email)+'">'+esc(m.email)+'</a>'+(m.phone?' &middot; '+esc(m.phone):'')+'</span></div></li>';
   }).join("")+'</ul>';
 }
-async function viewDirectory(){
+async function viewDirectory(u){
   var r = await api("/directory");
-  return '<h1>Directory</h1><label for="q" style="margin-top:0">Search by name or unit</label><input id="q" type="search" data-input="dir" placeholder="Start typing">'+
+  return '<h1>Directory</h1>'+
+    (u.role==="admin" ? '<details class="admin"><summary>Add a member</summary><form data-f="addmember">'+
+      '<label for="mn">Full name</label><input id="mn" name="name" type="text" required>'+
+      '<label for="me">Email</label><input id="me" name="email" type="email" required>'+
+      '<label for="mp">Temporary password (8 characters or more)</label><input id="mp" name="password" type="password" minlength="8" required>'+
+      '<p class="err" role="alert"></p><button class="btn">Add member</button>'+
+      '<p class="small muted" style="margin-top:10px">Share the email and password with them directly \u2014 they can change it once they log in.</p>'+
+      '</form></details>' : '')+
+    '<label for="q" style="margin-top:0">Search by name or unit</label><input id="q" type="search" data-input="dir" placeholder="Start typing">'+
     '<div class="panel" style="margin-top:12px" id="dirList">'+dirRows(r.members)+'</div><p class="small muted">Only members who chose to be listed appear here. Change this in Profile.</p>';
 }
 
@@ -425,7 +427,6 @@ async function go(v){ state.view = v; await render(); window.scrollTo(0,0); }
 document.addEventListener("click", async function(e){
   var b = e.target.closest("[data-a]"); if(!b) return;
   var a = b.dataset.a, id = Number(b.dataset.id);
-  if(a==="tab"){ state.authTab = b.dataset.v; render(); return; }
   if(a==="nav"){ go(b.dataset.v); return; }
   if(a==="logout"){
     try{ await api("/logout", {method:"POST"}); }catch(err){}
@@ -473,9 +474,9 @@ document.addEventListener("submit", async function(e){
       await api("/login", {method:"POST", body: JSON.stringify({email:d.email, password:d.password})});
       await loadMe(); state.view="home"; await render(); return;
     }
-    if(kind==="join"){
-      await api("/signup", {method:"POST", body: JSON.stringify({name:d.name, email:d.email, password:d.password})});
-      await loadMe(); state.view="home"; await render(); toast("Welcome to "+ORG+"."); return;
+    if(kind==="addmember"){
+      await api("/members", {method:"POST", body: JSON.stringify({name:d.name, email:d.email, password:d.password})});
+      f.reset(); await render(); toast("Member added."); return;
     }
     if(kind==="profile"){
       await api("/profile", {method:"POST", body: JSON.stringify({name:d.name, phone:d.phone, unit:d.unit, listed: !!d.listed})});
@@ -516,7 +517,7 @@ document.addEventListener("submit", async function(e){
 });
 
 (async function init(){
-  await loadMe();
+  try{ await loadMe(); }catch(e){ state.user = null; } // if this fails, show the login screen instead of a blank page
   await render();
 })();
 })();
