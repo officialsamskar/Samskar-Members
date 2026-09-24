@@ -237,7 +237,7 @@ function authView(){
 function nav(u){
   var items = [["home","Home"],["events","Events"],["notices","Notices"],["timetable","Timetable"],["directory","Directory"],["leave","Leave"],["profile","Profile"]];
   return '<nav class="side" aria-label="Main"><div class="brand">'+esc(ORG)+'</div>'+
-    '<div class="who">Signed in as <b>'+esc(u.name)+'</b><br>'+(u.role==="admin"?"Committee":"Member")+'</div>'+
+    '<div class="who">Signed in as <b>'+esc(u.name)+'</b><br>'+(u.role==="admin"?"Samskar":"Member")+'</div>'+
     items.map(function(i){ return '<button data-a="nav" data-v="'+i[0]+'"'+(state.view===i[0]?' aria-current="page"':'')+'>'+ico(i[0])+i[1]+'</button>'; }).join("")+
     '<div class="grow"></div><button data-a="logout">'+ico("logout")+'Log out</button></nav>';
 }
@@ -312,7 +312,7 @@ async function viewNotices(u){
 function dirRows(list){
   if(!list.length) return '<p class="muted">No members match that search.</p>';
   return '<ul class="list">'+list.map(function(m){
-    return '<li class="person"><div class="av" aria-hidden="true">'+esc(initials(m.name))+'</div><div><b>'+esc(m.name)+'</b>'+(m.role==="admin"?' <span class="tag">Committee</span>':'')+'<br><span class="small muted">'+esc(m.unit||"Member")+'</span><br><span class="small"><a href="mailto:'+esc(m.email)+'">'+esc(m.email)+'</a>'+(m.phone?' &middot; '+esc(m.phone):'')+'</span></div></li>';
+    return '<li class="person"><div class="av" aria-hidden="true">'+esc(initials(m.name))+'</div><div><b>'+esc(m.name)+'</b>'+(m.role==="admin"?' <span class="tag">Samskar</span>':'')+'<br><span class="small muted">'+esc(m.unit||"Member")+'</span><br><span class="small"><a href="mailto:'+esc(m.email)+'">'+esc(m.email)+'</a>'+(m.phone?' &middot; '+esc(m.phone):'')+'</span></div></li>';
   }).join("")+'</ul>';
 }
 async function viewDirectory(u){
