@@ -186,7 +186,7 @@ function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(
 function z(n){ return String(n).padStart(2,"0"); }
 function iso(d){ return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); }
 var TODAY = iso(new Date());
-function fmtDate(s){ try{ return new Date(s+"T00:00:00").toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}); }catch(e){ return s; } }
+function fmtDate(s){ if(!s) return "—"; try{ var d = new Date(s+"T00:00:00"); if(isNaN(d)) return "—"; return d.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}); }catch(e){ return "—"; } }
 function fmtTime(t){ if(!t) return ""; var p=t.split(":"); var h=Number(p[0]), m=p[1]; var ap=h>=12?"pm":"am"; var h12=h%12; if(h12===0)h12=12; return h12+":"+m+" "+ap; }
 function initials(n){ return String(n).split(/\s+/).filter(Boolean).slice(0,2).map(function(w){ return w[0].toUpperCase(); }).join(""); }
 function dayCount(a,b){ return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000)+1; }
@@ -237,7 +237,7 @@ function authView(){
 function nav(u){
   var items = [["home","Home"],["events","Events"],["notices","Notices"],["timetable","Timetable"],["directory","Directory"],["leave","Leave"],["profile","Profile"]];
   return '<nav class="side" aria-label="Main"><div class="brand">'+esc(ORG)+'</div>'+
-    '<div class="who">Signed in as <b>'+esc(u.name)+'</b><br>'+(u.role==="admin"?"Committee":"Member")+'</div>'+
+    '<div class="who">Signed in as <b>'+esc(u.name)+'</b><br>'+(u.role==="admin"?"Samskar":"Member")+'</div>'+
     items.map(function(i){ return '<button data-a="nav" data-v="'+i[0]+'"'+(state.view===i[0]?' aria-current="page"':'')+'>'+ico(i[0])+i[1]+'</button>'; }).join("")+
     '<div class="grow"></div><button data-a="logout">'+ico("logout")+'Log out</button></nav>';
 }
