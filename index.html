@@ -261,7 +261,7 @@ async function viewHome(u){
 
   return '<h1>Hello, '+esc(u.name.split(" ")[0])+'</h1>'+
   '<section class="idcard" aria-label="Membership card"><div class="idrow"><span class="org">'+esc(ORG)+'</span><span class="pill good">Member</span></div>'+
-  '<div class="idname">'+esc(u.name)+'</div><div class="idrow low"><span class="idno">'+esc(u.memberNo)+'</span><span>Member since '+esc(fmtDate(u.since))+'</span></div></section>'+
+  '<div class="idname">'+esc(u.name)+'</div><div class="idrow low"><span class="idno">'+esc(u.memberNo)+'</span></div></section>'+
   '<div class="grid">'+
   '<article class="panel"><h2>Your events</h2>'+(going.length ?
      '<ul class="list">'+going.slice(0,3).map(function(e){ return '<li><b>'+esc(e.title)+'</b><br><span class="muted small">'+esc(fmtDate(e.event_date))+', '+esc(e.event_time)+'</span></li>'; }).join("")+'</ul>' :
