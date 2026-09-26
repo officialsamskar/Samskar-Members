@@ -22,6 +22,7 @@ module.exports = async (req, res) => {
       const { email = '', password = '' } = await readBody(req);
       const { rows: [account] } = await db.query('SELECT * FROM users WHERE email=$1', [email.trim().toLowerCase()]);
       if (!account || !(await verifyPassword(password, account.password_hash))) return send(res, 400, { error: BAD_LOGIN });
+      if (!account.active) return send(res, 400, { error: 'This account has been deactivated. Contact an admin.' });
       const { token, maxAge } = await createSession(account.id);
       setSessionCookie(res, token, maxAge);
       return send(res, 200, { ok: true });
@@ -44,6 +45,38 @@ module.exports = async (req, res) => {
     const user = await getUserFromReq(req);
     if (!user) return send(res, 401, { error: 'Please log in.' });
 
+    if (path === '/search' && method === 'GET') {
+      const q = (req.query.q || '').toString().trim();
+      if (!q) return send(res, 200, { notices: [], events: [], timetable: [] });
+      const like = '%' + q + '%';
+      const notices = await db.query('SELECT id, title, body FROM notices WHERE title ILIKE $1 OR body ILIKE $1 ORDER BY created_at DESC LIMIT 8', [like]);
+      const events = await db.query('SELECT id, title, event_date, place, about FROM events WHERE title ILIKE $1 OR about ILIKE $1 OR place ILIKE $1 ORDER BY event_date DESC LIMIT 8', [like]);
+      const timetable = await db.query('SELECT id, title, day_of_week, location FROM timetable_entries WHERE title ILIKE $1 OR location ILIKE $1 ORDER BY day_of_week LIMIT 8', [like]);
+      return send(res, 200, { notices: notices.rows, events: events.rows, timetable: timetable.rows });
+    }
+
+    if (path === '/reports' && method === 'GET') {
+      if (!adminOnly(user, res)) return;
+      const leaveDays = (await db.query(
+        `SELECT u.id, u.name, SUM((l.to_date - l.from_date) + 1)::int AS days
+         FROM leaves l JOIN users u ON u.id = l.user_id
+         WHERE l.status = 'approved' AND date_part('year', l.from_date) = date_part('year', current_date)
+         GROUP BY u.id, u.name ORDER BY days DESC LIMIT 10`
+      )).rows;
+      const resourceUsage = (await db.query(
+        `SELECT r.id, r.name, COUNT(t.id)::int AS slots,
+                COALESCE(SUM(EXTRACT(EPOCH FROM (t.end_time - t.start_time)) / 3600), 0)::float AS hours
+         FROM resources r LEFT JOIN timetable_entries t ON t.subject_resource_id = r.id
+         GROUP BY r.id, r.name ORDER BY hours DESC`
+      )).rows;
+      const events = (await db.query(
+        `SELECT e.id, e.title, e.event_date, e.cap, COUNT(rv.user_id)::int AS going
+         FROM events e LEFT JOIN rsvps rv ON rv.event_id = e.id
+         GROUP BY e.id, e.title, e.event_date, e.cap ORDER BY e.event_date DESC LIMIT 20`
+      )).rows;
+      return send(res, 200, { leaveDays, resourceUsage, events });
+    }
+
     if (path === '/profile' && method === 'POST') {
       const { name = '', phone = '', unit = '', listed } = await readBody(req);
       if (!name.trim()) return send(res, 400, { error: 'Name cannot be empty.' });
@@ -64,15 +97,31 @@ module.exports = async (req, res) => {
 
     if (path === '/directory' && method === 'GET') {
       const q = (req.query.q || '').toString().trim();
-      const { rows } = await db.query(
-        `SELECT id, name, email, phone, unit, role FROM users
-         WHERE listed = true AND ($1 = '' OR name ILIKE '%'||$1||'%' OR unit ILIKE '%'||$1||'%') ORDER BY name`, [q]
-      );
+      const rows = isAdmin(user)
+        ? (await db.query(
+            `SELECT id, name, email, phone, unit, role, active FROM users
+             WHERE ($1 = '' OR name ILIKE '%'||$1||'%' OR unit ILIKE '%'||$1||'%') ORDER BY name`, [q]
+          )).rows
+        : (await db.query(
+            `SELECT id, name, email, phone, unit, role, active FROM users
+             WHERE listed = true AND active = true AND ($1 = '' OR name ILIKE '%'||$1||'%' OR unit ILIKE '%'||$1||'%') ORDER BY name`, [q]
+          )).rows;
       return send(res, 200, { members: rows });
     }
 
     if (path === '/members-list' && method === 'GET') {
-      return send(res, 200, { members: (await db.query('SELECT id, name FROM users ORDER BY name')).rows });
+      return send(res, 200, { members: (await db.query('SELECT id, name FROM users WHERE active = true ORDER BY name')).rows });
+    }
+
+    // admin-only: deactivate or reactivate a member. Kills their live sessions too, so it takes effect immediately.
+    if (parts[0] === 'members' && parts[2] === 'status' && method === 'POST') {
+      if (!adminOnly(user, res)) return;
+      const id = Number(parts[1]);
+      if (id === user.id) return send(res, 400, { error: 'You can\'t deactivate your own account.' });
+      const { active } = await readBody(req);
+      await db.query('UPDATE users SET active=$1 WHERE id=$2', [!!active, id]);
+      if (!active) await db.query('DELETE FROM sessions WHERE user_id=$1', [id]);
+      return send(res, 200, { ok: true });
     }
 
     // admin-only: add a new member account. Doesn't touch the admin's own session —
@@ -197,6 +246,60 @@ module.exports = async (req, res) => {
         await db.query('INSERT INTO resources (name, kind, created_by) VALUES ($1,$2,$3)', [name.trim(), kind, user.id]);
         return send(res, 200, { ok: true });
       }
+    }
+
+    // one-off changes: a whole-org holiday, or cancelling/moving a single occurrence of a recurring entry
+    if (path === '/timetable/exceptions') {
+      if (method === 'GET') {
+        const { rows } = await db.query(
+          `SELECT x.*, t.title AS entry_title, t.owner_id, t.subject_user_id
+           FROM timetable_exceptions x LEFT JOIN timetable_entries t ON t.id = x.entry_id
+           WHERE x.exception_date >= current_date - 1
+           ORDER BY x.exception_date, x.new_start_time NULLS LAST`
+        );
+        return send(res, 200, { exceptions: rows });
+      }
+      if (method === 'POST') {
+        const b = await readBody(req);
+        if (!b.kind || !b.date) return send(res, 400, { error: 'Fill in the change.' });
+
+        if (b.kind === 'holiday') {
+          if (!adminOnly(user, res)) return;
+          await db.query('INSERT INTO timetable_exceptions (kind, exception_date, note, created_by) VALUES (\'holiday\',$1,$2,$3)',
+            [b.date, (b.note || '').trim(), user.id]);
+          return send(res, 200, { ok: true });
+        }
+
+        if (b.kind === 'cancelled' || b.kind === 'moved') {
+          const entryId = Number(b.entryId);
+          const { rows: [entry] } = await db.query('SELECT owner_id, subject_user_id FROM timetable_entries WHERE id=$1', [entryId]);
+          if (!entry) return send(res, 404, { error: 'That schedule entry no longer exists.' });
+          if (!isAdmin(user) && entry.owner_id !== user.id && entry.subject_user_id !== user.id) {
+            return send(res, 403, { error: 'You can only change entries you own.' });
+          }
+          if (b.kind === 'moved' && (!b.newDate || !b.newStart || !b.newEnd)) return send(res, 400, { error: 'Pick the new date and time.' });
+          await db.query(
+            `INSERT INTO timetable_exceptions (entry_id, kind, exception_date, new_date, new_start_time, new_end_time, note, created_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [entryId, b.kind, b.date, b.newDate || null, b.newStart || null, b.newEnd || null, (b.note || '').trim(), user.id]
+          );
+          return send(res, 200, { ok: true });
+        }
+        return send(res, 400, { error: 'Unknown change type.' });
+      }
+    }
+    if (parts[0] === 'timetable' && parts[1] === 'exceptions' && parts.length === 3 && method === 'DELETE') {
+      const id = Number(parts[2]);
+      const { rows: [x] } = await db.query(
+        `SELECT x.created_by, t.owner_id, t.subject_user_id FROM timetable_exceptions x
+         LEFT JOIN timetable_entries t ON t.id = x.entry_id WHERE x.id=$1`, [id]
+      );
+      if (!x) return send(res, 404, { error: 'Not found.' });
+      if (!isAdmin(user) && x.created_by !== user.id && x.owner_id !== user.id && x.subject_user_id !== user.id) {
+        return send(res, 403, { error: 'You can only undo changes you made.' });
+      }
+      await db.query('DELETE FROM timetable_exceptions WHERE id=$1', [id]);
+      return send(res, 200, { ok: true });
     }
 
     // ---------- timetable ----------
