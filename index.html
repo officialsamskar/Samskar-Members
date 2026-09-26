@@ -199,6 +199,8 @@ var ICONS = {
   directory:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14a5 5 0 0 1 4.5 5"/>',
   leave:'<path d="M6 3h9l4 4v14H6z"/><path d="M9 13l2 2 4-4"/>',
   profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  reports:'<path d="M4 19V9M11 19V5M18 19v-7"/><path d="M3 19h18"/>',
   more:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
   logout:'<path d="M10 4H5v16h5M15 8l4 4-4 4M19 12H9"/>'
 };
@@ -235,7 +237,8 @@ function authView(){
 }
 
 function nav(u){
-  var items = [["home","Home"],["events","Events"],["notices","Notices"],["timetable","Timetable"],["directory","Directory"],["leave","Leave"],["profile","Profile"]];
+  var items = [["home","Home"],["events","Events"],["notices","Notices"],["timetable","Timetable"],["directory","Directory"],["leave","Leave"],["search","Search"],["profile","Profile"]];
+  if(u.role==="admin") items.push(["reports","Reports"]);
   return '<nav class="side" aria-label="Main"><div class="brand">'+esc(ORG)+'</div>'+
     '<div class="who">Signed in as <b>'+esc(u.name)+'</b><br>'+(u.role==="admin"?"Samskar":"Member")+'</div>'+
     items.map(function(i){ return '<button data-a="nav" data-v="'+i[0]+'"'+(state.view===i[0]?' aria-current="page"':'')+'>'+ico(i[0])+i[1]+'</button>'; }).join("")+
@@ -243,7 +246,7 @@ function nav(u){
 }
 function tabs(){
   var t = [["home","Home"],["events","Events"],["notices","Notices"],["timetable","Timetable"],["more","More"]];
-  var moreOn = ["more","directory","leave","profile"].indexOf(state.view) > -1;
+  var moreOn = ["more","directory","leave","profile","search","reports"].indexOf(state.view) > -1;
   return '<nav class="tabs" aria-label="Main">'+t.map(function(i){
     var on = i[0]==="more" ? moreOn : state.view===i[0];
     return '<button data-a="nav" data-v="'+i[0]+'"'+(on?' aria-current="page"':'')+'>'+ico(i[0])+i[1]+'</button>';
@@ -309,10 +312,14 @@ async function viewNotices(u){
   }).join("") : '<div class="panel"><p class="muted">No notices yet.</p></div>');
 }
 
-function dirRows(list){
+function dirRows(list, viewer){
   if(!list.length) return '<p class="muted">No members match that search.</p>';
+  var isAdminView = viewer && viewer.role==="admin";
   return '<ul class="list">'+list.map(function(m){
-    return '<li class="person"><div class="av" aria-hidden="true">'+esc(initials(m.name))+'</div><div><b>'+esc(m.name)+'</b>'+(m.role==="admin"?' <span class="tag">Samskar</span>':'')+'<br><span class="small muted">'+esc(m.unit||"Member")+'</span><br><span class="small"><a href="mailto:'+esc(m.email)+'">'+esc(m.email)+'</a>'+(m.phone?' &middot; '+esc(m.phone):'')+'</span></div></li>';
+    var inactive = isAdminView && m.active===false;
+    return '<li class="person"'+(inactive?' style="opacity:.55"':'')+'><div class="av" aria-hidden="true">'+esc(initials(m.name))+'</div><div style="flex:1"><b>'+esc(m.name)+'</b>'+(m.role==="admin"?' <span class="tag">Samskar</span>':'')+(inactive?' <span class="pill off">Inactive</span>':'')+'<br><span class="small muted">'+esc(m.unit||"Member")+'</span><br><span class="small"><a href="mailto:'+esc(m.email)+'">'+esc(m.email)+'</a>'+(m.phone?' &middot; '+esc(m.phone):'')+'</span>'+
+      (isAdminView && m.id!==viewer.id ? '<div style="margin-top:6px"><button class="btn ghost sm" data-a="toggleactive" data-id="'+m.id+'" data-active="'+(m.active!==false)+'">'+(m.active===false?"Reactivate":"Deactivate")+'</button></div>' : '')+
+      '</div></li>';
   }).join("")+'</ul>';
 }
 async function viewDirectory(u){
@@ -326,7 +333,7 @@ async function viewDirectory(u){
       '<p class="small muted" style="margin-top:10px">Share the email and password with them directly \u2014 they can change it once they log in.</p>'+
       '</form></details>' : '')+
     '<label for="q" style="margin-top:0">Search by name or unit</label><input id="q" type="search" data-input="dir" placeholder="Start typing">'+
-    '<div class="panel" style="margin-top:12px" id="dirList">'+dirRows(r.members)+'</div><p class="small muted">Only members who chose to be listed appear here. Change this in Profile.</p>';
+    '<div class="panel" style="margin-top:12px" id="dirList">'+dirRows(r.members, u)+'</div><p class="small muted">Only members who chose to be listed appear here. Change this in Profile.</p>';
 }
 
 async function viewLeave(u){
@@ -348,12 +355,23 @@ async function viewLeave(u){
   return html;
 }
 
+function nextDateForDay(dow){ // next upcoming date (today counts) that falls on weekday `dow`
+  var d = new Date(); var diff = (dow - d.getDay() + 7) % 7; d.setDate(d.getDate()+diff); return iso(d);
+}
 async function viewTimetable(u){
   var tr = await api("/timetable");
   var rr = await api("/resources");
   var mr = await api("/members-list");
-  var byDay = {};
-  DAYS.forEach(function(_,i){ byDay[i] = []; });
+  var xr = await api("/timetable/exceptions");
+
+  var holidays = {}; // date -> note
+  var byEntry = {};  // entryId -> [exceptions]
+  xr.exceptions.forEach(function(x){
+    if(x.kind==="holiday"){ holidays[x.exception_date] = x.note; }
+    else { (byEntry[x.entry_id] = byEntry[x.entry_id]||[]).push(x); }
+  });
+
+  var byDay = {}; DAYS.forEach(function(_,i){ byDay[i] = []; });
   tr.entries.forEach(function(e){ byDay[e.day_of_week].push(e); });
 
   var addForm = '<div class="panel"><h2>Add to timetable</h2><form data-f="timetable">'+
@@ -370,19 +388,66 @@ async function viewTimetable(u){
     '<p class="small muted">Use 24-hour time, e.g. 09:00 and 17:30.</p>'+
     '<p class="err" role="alert"></p><button class="btn">Add to timetable</button></form>'+
     (u.role==="admin" ? '<details class="admin" style="margin-top:14px"><summary>Add a room / resource</summary><form data-f="resource"><label for="rname">Name</label><input id="rname" name="name" type="text" required><p class="err" role="alert"></p><button class="btn sm">Add resource</button></form></details>' : '')+
+    (u.role==="admin" ? '<details class="admin" style="margin-top:14px"><summary>Mark a holiday</summary><form data-f="holiday"><label for="hdate">Date</label><input id="hdate" name="date" type="date" required><label for="hnote">Label</label><input id="hnote" name="note" type="text" placeholder="e.g. Diwali"><p class="small muted">Cancels everything scheduled that day.</p><p class="err" role="alert"></p><button class="btn sm">Mark holiday</button></form></details>' : '')+
     '</div>';
 
+  var upcoming = xr.exceptions.filter(function(x){ return x.exception_date >= TODAY; });
+  var changesPanel = !upcoming.length ? '' : '<div class="panel"><h2>Upcoming changes</h2><ul class="list">'+upcoming.map(function(x){
+    var canUndo = u.role==="admin" || x.created_by===u.id || x.owner_id===u.id || x.subject_user_id===u.id;
+    var label = x.kind==="holiday" ? '<b>Holiday</b>'+(x.note?': '+esc(x.note):'')+' &middot; '+fmtDate(x.exception_date)
+      : x.kind==="cancelled" ? '<b>'+esc(x.entry_title||"Entry")+'</b> cancelled on '+fmtDate(x.exception_date)
+      : '<b>'+esc(x.entry_title||"Entry")+'</b> moved from '+fmtDate(x.exception_date)+' to '+fmtDate(x.new_date)+' '+fmtTime(x.new_start_time)+'\u2013'+fmtTime(x.new_end_time);
+    return '<li class="row" style="justify-content:space-between">'+label+(canUndo?'<button class="btn ghost sm" data-a="delexception" data-id="'+x.id+'">Undo</button>':'')+'</li>';
+  }).join("")+'</ul></div>';
+
   var days = DAYS.map(function(d,i){
+    var date = nextDateForDay(i);
+    var holidayNote = holidays[date];
     var items = byDay[i].slice().sort(function(a,b){ return a.start_time.localeCompare(b.start_time); });
-    return '<div class="panel"><h2>'+d+'</h2>'+(items.length ? '<ul class="list">'+items.map(function(e){
-      var who = e.subject_type==="person" ? esc(e.person_name||"Member") : esc(e.resource_name||"Resource")+' <span class="tag">Room</span>';
-      var canDelete = u.role==="admin" || e.owner_id===u.id || e.subject_user_id===u.id;
-      return '<li><div class="row" style="justify-content:space-between"><b>'+esc(e.title)+'</b><span class="small muted">'+fmtTime(e.start_time)+' &ndash; '+fmtTime(e.end_time)+'</span></div><p class="small muted" style="margin:2px 0">'+who+(e.location?' &middot; '+esc(e.location):'')+'</p>'+
-        (canDelete ? '<button class="btn ghost sm" data-a="deltimetable" data-id="'+e.id+'">Remove</button>' : '')+'</li>';
-    }).join("")+'</ul>' : '<p class="muted">Nothing scheduled.</p>')+'</div>';
+    var body;
+    if(holidayNote!==undefined){
+      body = '<p class="pill wait">Holiday'+(holidayNote?': '+esc(holidayNote):'')+'</p>';
+    } else if(!items.length){
+      body = '<p class="muted">Nothing scheduled.</p>';
+    } else {
+      body = '<ul class="list">'+items.map(function(e){
+        var cancelledHere = (byEntry[e.id]||[]).some(function(x){ return x.kind==="cancelled" && x.exception_date===date; });
+        var movedHere = (byEntry[e.id]||[]).find(function(x){ return x.kind==="moved" && x.exception_date===date; });
+        if(movedHere) return ''; // shown on its new date instead, below
+        var who = e.subject_type==="person" ? esc(e.subject_user_name||"Member") : esc(e.subject_resource_name||"Resource")+' <span class="tag">Room</span>';
+        var canEdit = u.role==="admin" || e.owner_id===u.id || e.subject_user_id===u.id;
+        if(cancelledHere){
+          return '<li style="opacity:.55"><div class="row" style="justify-content:space-between"><b>'+esc(e.title)+'</b><span class="pill bad">Cancelled</span></div><p class="small muted" style="margin:2px 0">'+who+'</p></li>';
+        }
+        return '<li><div class="row" style="justify-content:space-between"><b>'+esc(e.title)+'</b><span class="small muted">'+fmtTime(e.start_time)+' &ndash; '+fmtTime(e.end_time)+'</span></div><p class="small muted" style="margin:2px 0">'+who+(e.location?' &middot; '+esc(e.location):'')+'</p>'+
+          (canEdit ? '<div class="row"><button class="btn ghost sm" data-a="ttadjust" data-id="'+e.id+'" data-date="'+date+'">Change this date</button><button class="btn ghost sm" data-a="deltimetable" data-id="'+e.id+'">Remove series</button></div>' : '')+
+          (canEdit ? '<form data-f="ttexception" data-entry="'+e.id+'" style="display:none;margin-top:8px" data-date="'+date+'">'+
+            '<label>Change type</label><select name="kind" data-a="ttkind"><option value="cancelled">Cancel just this date</option><option value="moved">Reschedule this date</option></select>'+
+            '<div class="moveFields" style="display:none"><div class="two"><div><label>New date</label><input name="newDate" type="date" min="'+TODAY+'"></div><div></div></div>'+
+            '<div class="two"><div><label>New start</label><input name="newStart" type="text" placeholder="09:00" pattern="[0-2][0-9]:[0-5][0-9]"></div><div><label>New end</label><input name="newEnd" type="text" placeholder="10:00" pattern="[0-2][0-9]:[0-5][0-9]"></div></div></div>'+
+            '<p class="err" role="alert"></p><div class="row"><button class="btn sm">Save change</button><button type="button" class="btn ghost sm" data-a="ttadjustcancel">Cancel</button></div></form>' : '')+
+          '</li>';
+      }).join("");
+      // moved-in entries landing on this date from elsewhere in the week
+      var movedIn = [];
+      Object.keys(byEntry).forEach(function(eid){
+        (byEntry[eid]||[]).forEach(function(x){
+          if(x.kind==="moved" && x.new_date===date){
+            var entry = tr.entries.find(function(e){ return e.id===Number(eid); });
+            if(entry) movedIn.push({entry:entry, x:x});
+          }
+        });
+      });
+      body += movedIn.map(function(m){
+        var who = m.entry.subject_type==="person" ? esc(m.entry.subject_user_name||"Member") : esc(m.entry.subject_resource_name||"Resource");
+        return '<li><div class="row" style="justify-content:space-between"><b>'+esc(m.entry.title)+'</b><span class="small muted">'+fmtTime(m.x.new_start_time)+' &ndash; '+fmtTime(m.x.new_end_time)+'</span></div><p class="small muted" style="margin:2px 0">'+who+' <span class="pill wait">Rescheduled</span></p></li>';
+      }).join("");
+      body = '<ul class="list">'+body+'</ul>';
+    }
+    return '<div class="panel"><h2>'+d+' <span class="small muted">'+esc(fmtDate(date))+'</span></h2>'+body+'</div>';
   }).join("");
 
-  return '<h1>Timetable</h1><p class="muted">A shared weekly schedule for members and rooms.</p>'+addForm+days;
+  return '<h1>Timetable</h1><p class="muted">A shared weekly schedule for members and rooms.</p>'+addForm+changesPanel+days;
 }
 
 async function viewProfile(u){
@@ -400,12 +465,66 @@ async function viewProfile(u){
 }
 
 function viewMore(u){
-  var items = [["directory","Directory"],["leave","Leave"],["profile","Profile"]];
+  var items = [["directory","Directory"],["leave","Leave"],["search","Search"],["profile","Profile"]];
+  if(u.role==="admin") items.push(["reports","Reports"]);
   return '<h1>More</h1>'+items.map(function(i){ return '<button class="moreitem" data-a="nav" data-v="'+i[0]+'">'+ico(i[0])+i[1]+'</button>'; }).join("")+
     '<button class="moreitem" data-a="logout">'+ico("logout")+'Log out</button>';
 }
 
-var VIEWS = {home:viewHome,events:viewEvents,notices:viewNotices,timetable:viewTimetable,directory:viewDirectory,leave:viewLeave,profile:viewProfile,more:viewMore};
+async function viewSearch(u){
+  return '<h1>Search</h1><label for="sq" style="margin-top:0">Search notices, events, and the timetable</label>'+
+    '<input id="sq" type="search" data-input="search" placeholder="Start typing">'+
+    '<div id="searchResults" style="margin-top:12px"></div>';
+}
+
+function searchResultsHtml(r){
+  if(!r.notices.length && !r.events.length && !r.timetable.length) return '<p class="muted">No matches yet.</p>';
+  var out = '';
+  if(r.notices.length) out += '<h2>Notices</h2><div class="panel"><ul class="list">'+r.notices.map(function(n){
+    return '<li><b>'+esc(n.title)+'</b><p class="small muted" style="margin:2px 0">'+esc((n.body||"").slice(0,120))+'</p><button class="linkbtn" data-a="nav" data-v="notices">Open Notices</button></li>';
+  }).join("")+'</ul></div>';
+  if(r.events.length) out += '<h2>Events</h2><div class="panel"><ul class="list">'+r.events.map(function(e){
+    return '<li><b>'+esc(e.title)+'</b><p class="small muted" style="margin:2px 0">'+esc(fmtDate(e.event_date))+(e.place?' &middot; '+esc(e.place):'')+'</p><button class="linkbtn" data-a="nav" data-v="events">Open Events</button></li>';
+  }).join("")+'</ul></div>';
+  if(r.timetable.length) out += '<h2>Timetable</h2><div class="panel"><ul class="list">'+r.timetable.map(function(t){
+    return '<li><b>'+esc(t.title)+'</b><p class="small muted" style="margin:2px 0">'+esc(DAYS[t.day_of_week])+(t.location?' &middot; '+esc(t.location):'')+'</p><button class="linkbtn" data-a="nav" data-v="timetable">Open Timetable</button></li>';
+  }).join("")+'</ul></div>';
+  return out;
+}
+
+async function viewReports(u){
+  var r = await api("/reports");
+  var maxLeave = Math.max.apply(null, r.leaveDays.map(function(x){ return x.days; }).concat([1]));
+  var maxHours = Math.max.apply(null, r.resourceUsage.map(function(x){ return x.hours; }).concat([1]));
+
+  var leaveHtml = !r.leaveDays.length ? '<p class="muted">No approved leave this year yet.</p>' :
+    '<ul class="list">'+r.leaveDays.map(function(x){
+      var pct = Math.round((x.days/maxLeave)*100);
+      return '<li><div class="row" style="justify-content:space-between"><b>'+esc(x.name)+'</b><span class="small muted">'+x.days+' '+(x.days===1?"day":"days")+'</span></div>'+
+        '<div style="background:var(--line-soft);border-radius:6px;height:8px;margin-top:6px"><div style="background:var(--btn);width:'+pct+'%;height:8px;border-radius:6px"></div></div></li>';
+    }).join("")+'</ul>';
+
+  var roomHtml = !r.resourceUsage.length ? '<p class="muted">No rooms or resources yet.</p>' :
+    '<ul class="list">'+r.resourceUsage.map(function(x){
+      var pct = Math.round((x.hours/maxHours)*100);
+      return '<li><div class="row" style="justify-content:space-between"><b>'+esc(x.name)+'</b><span class="small muted">'+x.slots+' '+(x.slots===1?"slot":"slots")+' &middot; '+x.hours.toFixed(1)+'h/week</span></div>'+
+        '<div style="background:var(--line-soft);border-radius:6px;height:8px;margin-top:6px"><div style="background:var(--btn);width:'+pct+'%;height:8px;border-radius:6px"></div></div></li>';
+    }).join("")+'</ul>';
+
+  var eventsHtml = !r.events.length ? '<p class="muted">No events yet.</p>' :
+    '<ul class="list">'+r.events.map(function(e){
+      var pct = e.cap ? Math.round((e.going/e.cap)*100) : 0;
+      return '<li><div class="row" style="justify-content:space-between"><b>'+esc(e.title)+'</b><span class="small muted">'+esc(fmtDate(e.event_date))+'</span></div><p class="small muted" style="margin:2px 0">'+e.going+' of '+e.cap+' signed up</p>'+
+        '<div style="background:var(--line-soft);border-radius:6px;height:8px"><div style="background:var(--btn);width:'+Math.min(pct,100)+'%;height:8px;border-radius:6px"></div></div></li>';
+    }).join("")+'</ul>';
+
+  return '<h1>Reports</h1>'+
+    '<div class="panel"><h2>Leave days used this year</h2>'+leaveHtml+'</div>'+
+    '<div class="panel"><h2>Busiest rooms &amp; resources</h2>'+roomHtml+'</div>'+
+    '<div class="panel"><h2>Event attendance</h2>'+eventsHtml+'</div>';
+}
+
+var VIEWS = {home:viewHome,events:viewEvents,notices:viewNotices,timetable:viewTimetable,directory:viewDirectory,leave:viewLeave,profile:viewProfile,more:viewMore,search:viewSearch,reports:viewReports};
 
 async function render(){
   var app = $("#app");
@@ -438,10 +557,23 @@ document.addEventListener("click", async function(e){
     if(a==="rsvp"){ await api("/events/"+id+"/rsvp", {method:"POST"}); toast("Updated."); await render(); return; }
     if(a==="delevent"){ await api("/events/"+id, {method:"DELETE"}); toast("Event removed."); await render(); return; }
     if(a==="delnotice"){ await api("/notices/"+id, {method:"DELETE"}); toast("Notice deleted."); await render(); return; }
+    if(a==="toggleactive"){
+      var willBeActive = b.dataset.active !== "true";
+      await api("/members/"+id+"/status", {method:"POST", body: JSON.stringify({active: willBeActive})});
+      toast(willBeActive ? "Member reactivated." : "Member deactivated.");
+      await render(); return;
+    }
     if(a==="leavecancel"){ await api("/leaves/"+id, {method:"POST", body: JSON.stringify({action:"cancel"})}); toast("Request cancelled."); await render(); return; }
     if(a==="approve"){ await api("/leaves/"+id, {method:"POST", body: JSON.stringify({action:"approve"})}); toast("Request approved."); await render(); return; }
     if(a==="decline"){ await api("/leaves/"+id, {method:"POST", body: JSON.stringify({action:"decline"})}); toast("Request declined."); await render(); return; }
     if(a==="deltimetable"){ await api("/timetable/"+id, {method:"DELETE"}); toast("Removed from timetable."); await render(); return; }
+    if(a==="delexception"){ await api("/timetable/exceptions/"+id, {method:"DELETE"}); toast("Change undone."); await render(); return; }
+    if(a==="ttadjust"){
+      var form = document.querySelector('form[data-f="ttexception"][data-entry="'+id+'"][data-date="'+b.dataset.date+'"]');
+      if(form) form.style.display = "";
+      return;
+    }
+    if(a==="ttadjustcancel"){ var f2 = b.closest("form"); if(f2) f2.style.display = "none"; return; }
   }catch(err){ toast(err.message); }
 });
 
@@ -452,13 +584,25 @@ document.addEventListener("change", function(e){
     if(pp) pp.style.display = (v==="person-other") ? "" : "none";
     if(rp) rp.style.display = (v==="resource") ? "" : "none";
   }
+  if(e.target && e.target.dataset && e.target.dataset.a === "ttkind"){
+    var mf = e.target.closest("form").querySelector(".moveFields");
+    if(mf) mf.style.display = (e.target.value==="moved") ? "" : "none";
+  }
 });
 
 document.addEventListener("input", async function(e){
   if(e.target.dataset && e.target.dataset.input==="dir"){
     try{
       var r = await api("/directory?q="+encodeURIComponent(e.target.value));
-      var box = $("#dirList"); if(box) box.innerHTML = dirRows(r.members);
+      var box = $("#dirList"); if(box) box.innerHTML = dirRows(r.members, state.user);
+    }catch(err){}
+  }
+  if(e.target.dataset && e.target.dataset.input==="search"){
+    var box2 = $("#searchResults");
+    if(!e.target.value.trim()){ if(box2) box2.innerHTML = ""; return; }
+    try{
+      var r2 = await api("/search?q="+encodeURIComponent(e.target.value));
+      if(box2) box2.innerHTML = searchResultsHtml(r2);
     }catch(err){}
   }
 });
@@ -512,6 +656,16 @@ document.addEventListener("submit", async function(e){
       };
       await api("/timetable", {method:"POST", body: JSON.stringify(payload)});
       f.reset(); await render(); toast("Added to timetable."); return;
+    }
+    if(kind==="holiday"){
+      await api("/timetable/exceptions", {method:"POST", body: JSON.stringify({kind:"holiday", date:d.date, note:d.note})});
+      f.reset(); await render(); toast("Holiday marked."); return;
+    }
+    if(kind==="ttexception"){
+      var entryId = Number(f.dataset.entry), onDate = f.dataset.date;
+      var payload2 = {kind:d.kind, entryId:entryId, date:onDate, newDate:d.newDate, newStart:d.newStart, newEnd:d.newEnd};
+      await api("/timetable/exceptions", {method:"POST", body: JSON.stringify(payload2)});
+      await render(); toast(d.kind==="cancelled" ? "That date is cancelled." : "Rescheduled."); return;
     }
   }catch(err){ fail(err.message); }
 });
