@@ -4,6 +4,8 @@ const db = require('../lib/db');
 const { send, readBody, parseCookies, setSessionCookie, clearSessionCookie } = require('../lib/http');
 const { createSession, destroySession, getUserFromReq, hashPassword, verifyPassword } = require('../lib/auth');
 const { sendEmail } = require('./_resend');
+const crypto = require('crypto');
+const SITE_URL = process.env.SITE_URL || 'https://samskarmembers.vercel.app';
 
 const BAD_LOGIN = 'That email and password do not match. Check both and try again.';
 const isAdmin = (user) => user.role === 'admin';
@@ -162,6 +164,72 @@ module.exports = async (req, res) => {
       } catch (err) {
         console.error('member-credentials email failed:', err);
       }
+      return send(res, 200, { ok: true });
+    }
+
+    // admin-only: invite a new member by name + email only — no password is set
+    // by the admin. The member gets an emailed link to choose their own password.
+    if (path === '/invite' && method === 'POST') {
+      if (!adminOnly(user, res)) return;
+      const { name = '', email = '' } = await readBody(req);
+      const cleanName = name.trim(), cleanEmail = email.trim().toLowerCase();
+      if (!cleanName) return send(res, 400, { error: 'Enter their full name.' });
+      if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) return send(res, 400, { error: 'Enter a valid email address.' });
+      if ((await db.query('SELECT 1 FROM users WHERE email=$1', [cleanEmail])).rows.length) {
+        return send(res, 400, { error: 'An account with that email already exists.' });
+      }
+      // Placeholder password nobody knows — real login only works after the
+      // member sets their own password through the invite link below.
+      const placeholderHash = await hashPassword(crypto.randomBytes(32).toString('hex'));
+      const token = crypto.randomBytes(32).toString('hex');
+      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      const { rows: [{ id }] } = await db.query(
+        `INSERT INTO users (member_no, name, email, password_hash, invite_token, invite_token_expires)
+         VALUES ('PENDING',$1,$2,$3,$4,$5) RETURNING id`,
+        [cleanName, cleanEmail, placeholderHash, token, expires]
+      );
+      await db.query('UPDATE users SET member_no=$1 WHERE id=$2', ['M-' + (1000 + id), id]);
+      try {
+        await sendEmail({
+          to: cleanEmail,
+          subject: "You're invited to join Samskar",
+          html: `
+            <p>Namaste ${cleanName},</p>
+            <p>You've been invited to join Samskar. Click below to set your password and activate your account:</p>
+            <p><a href="${SITE_URL}/accept-invite.html?token=${token}">Set your password</a></p>
+            <p>This link expires in 7 days.</p>
+            <p>— Samskar</p>
+          `,
+        });
+      } catch (err) {
+        console.error('invite email failed:', err);
+      }
+      return send(res, 200, { ok: true });
+    }
+
+    // public: check an invite token is still valid, so the accept-invite page
+    // can show the person's name before they set a password.
+    if (parts[0] === 'invite' && parts[1] && method === 'GET') {
+      const token = parts[1];
+      const { rows: [invitee] } = await db.query(
+        'SELECT name, email FROM users WHERE invite_token=$1 AND invite_token_expires > now()',
+        [token]
+      );
+      if (!invitee) return send(res, 400, { error: 'This invite link is invalid or has expired.' });
+      return send(res, 200, { name: invitee.name, email: invitee.email });
+    }
+
+    // public: the member sets their own password, spending the invite token.
+    if (parts[0] === 'invite' && parts[1] && method === 'POST') {
+      const token = parts[1];
+      const { password = '' } = await readBody(req);
+      if (password.length < 8) return send(res, 400, { error: 'Use a password with at least 8 characters.' });
+      const { rows: [row] } = await db.query(
+        `UPDATE users SET password_hash=$1, invite_token=NULL, invite_token_expires=NULL
+         WHERE invite_token=$2 AND invite_token_expires > now() RETURNING id`,
+        [await hashPassword(password), token]
+      );
+      if (!row) return send(res, 400, { error: 'This invite link is invalid or has expired.' });
       return send(res, 200, { ok: true });
     }
 
