@@ -3,6 +3,7 @@
 const db = require('../lib/db');
 const { send, readBody, parseCookies, setSessionCookie, clearSessionCookie } = require('../lib/http');
 const { createSession, destroySession, getUserFromReq, hashPassword, verifyPassword } = require('../lib/auth');
+const { sendEmail } = require('./_resend');
 
 const BAD_LOGIN = 'That email and password do not match. Check both and try again.';
 const isAdmin = (user) => user.role === 'admin';
@@ -141,6 +142,26 @@ module.exports = async (req, res) => {
         [cleanName, cleanEmail, await hashPassword(password)]
       );
       await db.query('UPDATE users SET member_no=$1 WHERE id=$2', ['M-' + (1000 + id), id]);
+      // Best-effort: the account is already created, so a failed email shouldn't
+      // block the admin's response — just log it if something goes wrong.
+      try {
+        await sendEmail({
+          to: cleanEmail,
+          subject: 'Your Samskar member account is ready',
+          html: `
+            <p>Namaste ${cleanName},</p>
+            <p>Your member account has been created. Here are your login details:</p>
+            <p>
+              <strong>Email:</strong> ${cleanEmail}<br>
+              <strong>Temporary password:</strong> ${password}
+            </p>
+            <p>Please log in and change your password as soon as possible.</p>
+            <p>— Samskar</p>
+          `,
+        });
+      } catch (err) {
+        console.error('member-credentials email failed:', err);
+      }
       return send(res, 200, { ok: true });
     }
 
