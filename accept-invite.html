@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set your password — Samskar</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 420px; margin: 60px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  p.sub { color: #666; margin-top: 0; }
+  input { width: 100%; padding: 10px; margin: 8px 0 16px; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+  button { width: 100%; padding: 12px; font-size: 1rem; border: none; border-radius: 6px; background: #222; color: #fff; cursor: pointer; }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .msg { padding: 10px; border-radius: 6px; margin-bottom: 16px; font-size: 0.95rem; }
+  .msg.error { background: #fdecea; color: #b3261e; }
+  .msg.success { background: #e6f4ea; color: #1e7e34; }
+</style>
+</head>
+<body>
+  <h1 id="heading">Loading…</h1>
+  <p class="sub" id="subheading"></p>
+  <div id="content"></div>
+
+<script>
+  // Change this if your site is deployed at a different domain.
+  const API_BASE = '/api';
+
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token') || '';
+  const heading = document.getElementById('heading');
+  const subheading = document.getElementById('subheading');
+  const content = document.getElementById('content');
+
+  function showError(msg) {
+    heading.textContent = 'Invite link problem';
+    subheading.textContent = '';
+    content.innerHTML = '<div class="msg error"></div>';
+    content.querySelector('.msg').textContent = msg;
+  }
+
+  async function init() {
+    if (!token) return showError('This link is missing its invite token.');
+
+    let data;
+    try {
+      const res = await fetch(`${API_BASE}/invite/${encodeURIComponent(token)}`);
+      data = await res.json();
+      if (!res.ok) return showError(data.error || 'This invite link is invalid or has expired.');
+    } catch (err) {
+      return showError('Could not reach the server. Please try again.');
+    }
+
+    heading.textContent = `Welcome, ${data.name}`;
+    subheading.textContent = `Set a password for ${data.email} to activate your account.`;
+    content.innerHTML = `
+      <div id="formMsg"></div>
+      <input id="password" type="password" placeholder="New password (min 8 characters)" autocomplete="new-password">
+      <input id="confirm" type="password" placeholder="Confirm password" autocomplete="new-password">
+      <button id="submitBtn">Set password</button>
+    `;
+
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const password = document.getElementById('password').value;
+      const confirm = document.getElementById('confirm').value;
+      const formMsg = document.getElementById('formMsg');
+      formMsg.innerHTML = '';
+
+      if (password.length < 8) {
+        formMsg.innerHTML = '<div class="msg error">Use a password with at least 8 characters.</div>';
+        return;
+      }
+      if (password !== confirm) {
+        formMsg.innerHTML = '<div class="msg error">Passwords don\'t match.</div>';
+        return;
+      }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      try {
+        const res = await fetch(`${API_BASE}/invite/${encodeURIComponent(token)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          formMsg.innerHTML = `<div class="msg error">${result.error || 'Something went wrong.'}</div>`;
+          btn.disabled = false;
+          btn.textContent = 'Set password';
+          return;
+        }
+        heading.textContent = 'You\'re all set!';
+        subheading.textContent = '';
+        content.innerHTML = '<div class="msg success">Your password has been set. You can now log in.</div>';
+      } catch (err) {
+        formMsg.innerHTML = '<div class="msg error">Could not reach the server. Please try again.</div>';
+        btn.disabled = false;
+        btn.textContent = 'Set password';
+      }
+    });
+  }
+
+  init();
+</script>
+</body>
+</html>
