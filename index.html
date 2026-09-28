@@ -332,6 +332,12 @@ async function viewDirectory(u){
       '<p class="err" role="alert"></p><button class="btn">Add member</button>'+
       '<p class="small muted" style="margin-top:10px">Share the email and password with them directly \u2014 they can change it once they log in.</p>'+
       '</form></details>' : '')+
+    (u.role==="admin" ? '<details class="admin"><summary>Invite a member by email</summary><form data-f="invite">'+
+      '<label for="in">Full name</label><input id="in" name="name" type="text" required>'+
+      '<label for="ie">Email</label><input id="ie" name="email" type="email" required>'+
+      '<p class="err" role="alert"></p><button class="btn">Send invite</button>'+
+      '<p class="small muted" style="margin-top:10px">They get an email with a link to choose their own password. The link works for 7 days.</p>'+
+      '</form></details>' : '')+
     '<label for="q" style="margin-top:0">Search by name or unit</label><input id="q" type="search" data-input="dir" placeholder="Start typing">'+
     '<div class="panel" style="margin-top:12px" id="dirList">'+dirRows(r.members, u)+'</div><p class="small muted">Only members who chose to be listed appear here. Change this in Profile.</p>';
 }
@@ -621,6 +627,10 @@ document.addEventListener("submit", async function(e){
     if(kind==="addmember"){
       await api("/members", {method:"POST", body: JSON.stringify({name:d.name, email:d.email, password:d.password})});
       f.reset(); await render(); toast("Member added."); return;
+    }
+    if(kind==="invite"){
+      await api("/invite", {method:"POST", body: JSON.stringify({name:d.name, email:d.email})});
+      f.reset(); await render(); toast("Invite sent."); return;
     }
     if(kind==="profile"){
       await api("/profile", {method:"POST", body: JSON.stringify({name:d.name, phone:d.phone, unit:d.unit, listed: !!d.listed})});

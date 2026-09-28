@@ -2,106 +2,145 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#6E1F2B">
+<meta name="color-scheme" content="light dark">
 <title>Set your password — Samskar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  body { font-family: system-ui, -apple-system, sans-serif; max-width: 420px; margin: 60px auto; padding: 0 20px; color: #222; }
-  h1 { font-size: 1.4rem; margin-bottom: 4px; }
-  p.sub { color: #666; margin-top: 0; }
-  input { width: 100%; padding: 10px; margin: 8px 0 16px; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-  button { width: 100%; padding: 12px; font-size: 1rem; border: none; border-radius: 6px; background: #222; color: #fff; cursor: pointer; }
-  button:disabled { opacity: 0.6; cursor: default; }
-  .msg { padding: 10px; border-radius: 6px; margin-bottom: 16px; font-size: 0.95rem; }
-  .msg.error { background: #fdecea; color: #b3261e; }
-  .msg.success { background: #e6f4ea; color: #1e7e34; }
+:root{
+  --bg:#FBF3E6; --surface:#FFFFFF; --ink:#2B1B12; --muted:#5A4A3D; --faint:#8C7862;
+  --line:#DBBE83; --line-soft:#EEDFBA;
+  --btn:#6E1F2B; --btn-hover:#4A141C; --on-btn:#E7C77E;
+  --strong:#4A141C; --tint:#F2E0DE; --gold-soft:#F3E6C9;
+  --rust:#A8402E; --rust-soft:#F3DFD9; --ok:#2F4A3C; --ok-soft:#E3EDE6;
+  --shadow:rgba(74,20,28,.08);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#1B1013; --surface:#2A191D; --ink:#F6EBDA; --muted:#CDB9A0; --faint:#A08C76;
+    --line:#5E4629; --line-soft:#3B2A25;
+    --btn:#8E2A3B; --btn-hover:#A5364A; --on-btn:#FBE7B0;
+    --strong:#F0D08A; --tint:#3B1D24; --gold-soft:#372B18;
+    --rust:#F0A08C; --rust-soft:#41211C; --ok:#A9D6B8; --ok-soft:#1F3328;
+    --shadow:rgba(0,0,0,.35);
+  }
+}
+html{height:100%}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:15px/1.6 "Jost",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;display:grid;place-items:center;padding:24px 16px}
+.card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:32px 26px;box-shadow:0 14px 34px var(--shadow)}
+.brand{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-weight:600;font-size:1.7rem;color:var(--strong);line-height:1.1}
+.tagline{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;color:var(--muted);margin-bottom:22px}
+h1{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:1.8rem;line-height:1.15;margin:0 0 6px;color:var(--ink)}
+.sub{color:var(--muted);margin:0 0 6px}
+label{display:block;font-weight:500;font-size:.85rem;color:var(--muted);margin:16px 0 5px}
+input{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;outline:none}
+input:focus{border-color:var(--btn)}
+:focus-visible{outline:2px solid var(--strong);outline-offset:2px}
+.btn{width:100%;min-height:44px;margin-top:20px;border-radius:999px;border:1px solid var(--btn);background:var(--btn);color:var(--on-btn);font:inherit;font-weight:500;cursor:pointer;transition:background .15s ease,box-shadow .15s ease}
+.btn:hover{background:var(--btn-hover);box-shadow:0 8px 20px rgba(74,20,28,.22)}
+.btn:disabled{background:var(--line-soft);border-color:var(--line);color:var(--faint);cursor:not-allowed;box-shadow:none}
+.msg{padding:10px 12px;border-radius:8px;margin:14px 0 0;font-size:.9rem}
+.msg.error{background:var(--rust-soft);color:var(--rust)}
+.msg.success{background:var(--ok-soft);color:var(--ok)}
+.hint{font-size:.8rem;color:var(--faint);margin:6px 0 0}
+.link{display:inline-flex;align-items:center;justify-content:center;width:100%;min-height:44px;margin-top:20px;border-radius:999px;background:var(--btn);color:var(--on-btn);text-decoration:none;font-weight:500}
+.link:hover{background:var(--btn-hover)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-  <h1 id="heading">Loading…</h1>
+<main class="card">
+  <div class="brand">Samskar</div>
+  <div class="tagline">crafting traditions with trend</div>
+  <h1 id="heading">Loading&hellip;</h1>
   <p class="sub" id="subheading"></p>
   <div id="content"></div>
+</main>
 
 <script>
-  // Change this if your site is deployed at a different domain.
-  const API_BASE = '/api';
+  var API_BASE = '/api';
+  var token = new URLSearchParams(window.location.search).get('token') || '';
+  var heading = document.getElementById('heading');
+  var subheading = document.getElementById('subheading');
+  var content = document.getElementById('content');
 
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get('token') || '';
-  const heading = document.getElementById('heading');
-  const subheading = document.getElementById('subheading');
-  const content = document.getElementById('content');
-
-  function showError(msg) {
-    heading.textContent = 'Invite link problem';
+  // Builds a message box using textContent, so nothing typed or returned by the server can inject HTML.
+  function msgBox(kind, text) {
+    var d = document.createElement('div');
+    d.className = 'msg ' + kind;
+    d.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    d.textContent = text;
+    return d;
+  }
+  function showError(text) {
+    heading.textContent = 'This invite link needs a fresh start';
     subheading.textContent = '';
-    content.innerHTML = '<div class="msg error"></div>';
-    content.querySelector('.msg').textContent = msg;
+    content.replaceChildren(msgBox('error', text + ' Ask a Samskar admin to send you a new invite.'));
   }
 
   async function init() {
-    if (!token) return showError('This link is missing its invite token.');
-
-    let data;
+    if (!token) return showError('The link is missing its invite code.');
+    var data;
     try {
-      const res = await fetch(`${API_BASE}/invite/${encodeURIComponent(token)}`);
+      var res = await fetch(API_BASE + '/invite/' + encodeURIComponent(token));
       data = await res.json();
       if (!res.ok) return showError(data.error || 'This invite link is invalid or has expired.');
     } catch (err) {
-      return showError('Could not reach the server. Please try again.');
+      return showError('We could not reach the server.');
     }
 
-    heading.textContent = `Welcome, ${data.name}`;
-    subheading.textContent = `Set a password for ${data.email} to activate your account.`;
-    content.innerHTML = `
-      <div id="formMsg"></div>
-      <input id="password" type="password" placeholder="New password (min 8 characters)" autocomplete="new-password">
-      <input id="confirm" type="password" placeholder="Confirm password" autocomplete="new-password">
-      <button id="submitBtn">Set password</button>
-    `;
+    heading.textContent = 'Welcome, ' + data.name;
+    subheading.textContent = 'Choose a password for ' + data.email + ' to activate your member account.';
+    content.innerHTML =
+      '<div id="formMsg"></div>' +
+      '<label for="password">New password</label>' +
+      '<input id="password" type="password" autocomplete="new-password" minlength="8">' +
+      '<p class="hint">At least 8 characters.</p>' +
+      '<label for="confirm">Confirm password</label>' +
+      '<input id="confirm" type="password" autocomplete="new-password">' +
+      '<button class="btn" id="submitBtn">Set password</button>';
 
-    document.getElementById('submitBtn').addEventListener('click', async () => {
-      const password = document.getElementById('password').value;
-      const confirm = document.getElementById('confirm').value;
-      const formMsg = document.getElementById('formMsg');
-      formMsg.innerHTML = '';
+    var btn = document.getElementById('submitBtn');
+    var formMsg = document.getElementById('formMsg');
+    btn.addEventListener('click', async function () {
+      formMsg.replaceChildren();
+      var password = document.getElementById('password').value;
+      var confirmPw = document.getElementById('confirm').value;
+      if (password.length < 8) return formMsg.appendChild(msgBox('error', 'Use a password with at least 8 characters.'));
+      if (password !== confirmPw) return formMsg.appendChild(msgBox('error', 'The two passwords do not match.'));
 
-      if (password.length < 8) {
-        formMsg.innerHTML = '<div class="msg error">Use a password with at least 8 characters.</div>';
-        return;
-      }
-      if (password !== confirm) {
-        formMsg.innerHTML = '<div class="msg error">Passwords don\'t match.</div>';
-        return;
-      }
-
-      const btn = document.getElementById('submitBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving…';
-
+      btn.disabled = true; btn.textContent = 'Saving\u2026';
       try {
-        const res = await fetch(`${API_BASE}/invite/${encodeURIComponent(token)}`, {
+        var res = await fetch(API_BASE + '/invite/' + encodeURIComponent(token), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password }),
+          body: JSON.stringify({ password: password })
         });
-        const result = await res.json();
+        var result = await res.json();
         if (!res.ok) {
-          formMsg.innerHTML = `<div class="msg error">${result.error || 'Something went wrong.'}</div>`;
-          btn.disabled = false;
-          btn.textContent = 'Set password';
+          formMsg.appendChild(msgBox('error', result.error || 'Something went wrong. Please try again.'));
+          btn.disabled = false; btn.textContent = 'Set password';
           return;
         }
-        heading.textContent = 'You\'re all set!';
+        heading.textContent = 'You are all set';
         subheading.textContent = '';
-        content.innerHTML = '<div class="msg success">Your password has been set. You can now log in.</div>';
+        var ok = msgBox('success', 'Your password is saved. You can log in now.');
+        var a = document.createElement('a');
+        a.className = 'link'; a.href = '/'; a.textContent = 'Log in';
+        content.replaceChildren(ok, a);
       } catch (err) {
-        formMsg.innerHTML = '<div class="msg error">Could not reach the server. Please try again.</div>';
-        btn.disabled = false;
-        btn.textContent = 'Set password';
+        formMsg.appendChild(msgBox('error', 'We could not reach the server. Please try again.'));
+        btn.disabled = false; btn.textContent = 'Set password';
       }
     });
   }
-
   init();
 </script>
 </body>
