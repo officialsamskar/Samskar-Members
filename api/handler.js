@@ -7,6 +7,8 @@ const { sendEmail } = require('./_resend');
 const crypto = require('crypto');
 const SITE_URL = process.env.SITE_URL || 'https://samskarmembers.vercel.app';
 
+const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const BAD_LOGIN = 'That email and password do not match. Check both and try again.';
 const isAdmin = (user) => user.role === 'admin';
 const adminOnly = (user, res) => isAdmin(user) || (send(res, 403, { error: 'Admins only.' }), false);
@@ -42,6 +44,32 @@ module.exports = async (req, res) => {
       if (!u) return send(res, 200, { user: null });
       const { id, member_no: memberNo, name, email, role, unit, phone, listed, since } = u;
       return send(res, 200, { user: { id, memberNo, name, email, role, unit, phone, listed, since } });
+    }
+
+    // public: check an invite token is still valid, so the accept-invite page
+    // can show the person's name before they set a password.
+    if (parts[0] === 'invite' && parts[1] && method === 'GET') {
+      const token = parts[1];
+      const { rows: [invitee] } = await db.query(
+        'SELECT name, email FROM users WHERE invite_token=$1 AND invite_token_expires > now()',
+        [token]
+      );
+      if (!invitee) return send(res, 400, { error: 'This invite link is invalid or has expired.' });
+      return send(res, 200, { name: invitee.name, email: invitee.email });
+    }
+
+    // public: the member sets their own password, spending the invite token.
+    if (parts[0] === 'invite' && parts[1] && method === 'POST') {
+      const token = parts[1];
+      const { password = '' } = await readBody(req);
+      if (password.length < 8) return send(res, 400, { error: 'Use a password with at least 8 characters.' });
+      const { rows: [row] } = await db.query(
+        `UPDATE users SET password_hash=$1, invite_token=NULL, invite_token_expires=NULL
+         WHERE invite_token=$2 AND invite_token_expires > now() RETURNING id`,
+        [await hashPassword(password), token]
+      );
+      if (!row) return send(res, 400, { error: 'This invite link is invalid or has expired.' });
+      return send(res, 200, { ok: true });
     }
 
     // ---------- everything below needs a session ----------
@@ -95,6 +123,7 @@ module.exports = async (req, res) => {
       if (next !== again) return send(res, 400, { error: 'The new passwords do not match.' });
       if (next === current) return send(res, 400, { error: 'Choose a password you have not used before.' });
       await db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [await hashPassword(next), user.id]);
+      await db.query('DELETE FROM sessions WHERE user_id=$1 AND token<>$2', [user.id, parseCookies(req).sh_session]);
       return send(res, 200, { ok: true });
     }
 
@@ -151,11 +180,11 @@ module.exports = async (req, res) => {
           to: cleanEmail,
           subject: 'Your Samskar member account is ready',
           html: `
-            <p>Namaste ${cleanName},</p>
+            <p>Namaste ${escHtml(cleanName)},</p>
             <p>Your member account has been created. Here are your login details:</p>
             <p>
-              <strong>Email:</strong> ${cleanEmail}<br>
-              <strong>Temporary password:</strong> ${password}
+              <strong>Email:</strong> ${escHtml(cleanEmail)}<br>
+              <strong>Temporary password:</strong> ${escHtml(password)}
             </p>
             <p>Please log in and change your password as soon as possible.</p>
             <p>— Samskar</p>
@@ -189,12 +218,13 @@ module.exports = async (req, res) => {
         [cleanName, cleanEmail, placeholderHash, token, expires]
       );
       await db.query('UPDATE users SET member_no=$1 WHERE id=$2', ['M-' + (1000 + id), id]);
+      let emailSent = true;
       try {
         await sendEmail({
           to: cleanEmail,
           subject: "You're invited to join Samskar",
           html: `
-            <p>Namaste ${cleanName},</p>
+            <p>Namaste ${escHtml(cleanName)},</p>
             <p>You've been invited to join Samskar. Click below to set your password and activate your account:</p>
             <p><a href="${SITE_URL}/accept-invite.html?token=${token}">Set your password</a></p>
             <p>This link expires in 7 days.</p>
@@ -203,34 +233,9 @@ module.exports = async (req, res) => {
         });
       } catch (err) {
         console.error('invite email failed:', err);
+        emailSent = false;
       }
-      return send(res, 200, { ok: true });
-    }
-
-    // public: check an invite token is still valid, so the accept-invite page
-    // can show the person's name before they set a password.
-    if (parts[0] === 'invite' && parts[1] && method === 'GET') {
-      const token = parts[1];
-      const { rows: [invitee] } = await db.query(
-        'SELECT name, email FROM users WHERE invite_token=$1 AND invite_token_expires > now()',
-        [token]
-      );
-      if (!invitee) return send(res, 400, { error: 'This invite link is invalid or has expired.' });
-      return send(res, 200, { name: invitee.name, email: invitee.email });
-    }
-
-    // public: the member sets their own password, spending the invite token.
-    if (parts[0] === 'invite' && parts[1] && method === 'POST') {
-      const token = parts[1];
-      const { password = '' } = await readBody(req);
-      if (password.length < 8) return send(res, 400, { error: 'Use a password with at least 8 characters.' });
-      const { rows: [row] } = await db.query(
-        `UPDATE users SET password_hash=$1, invite_token=NULL, invite_token_expires=NULL
-         WHERE invite_token=$2 AND invite_token_expires > now() RETURNING id`,
-        [await hashPassword(password), token]
-      );
-      if (!row) return send(res, 400, { error: 'This invite link is invalid or has expired.' });
-      return send(res, 200, { ok: true });
+      return send(res, 200, { ok: true, emailSent });
     }
 
     // ---------- events ----------
@@ -256,16 +261,19 @@ module.exports = async (req, res) => {
     }
     if (parts[0] === 'events' && parts[2] === 'rsvp' && method === 'POST') {
       const id = Number(parts[1]);
-      const { rows: [ev] } = await db.query('SELECT cap FROM events WHERE id=$1', [id]);
-      if (!ev) return send(res, 404, { error: 'Event not found.' });
-      if ((await db.query('SELECT 1 FROM rsvps WHERE event_id=$1 AND user_id=$2', [id, user.id])).rows.length) {
-        await db.query('DELETE FROM rsvps WHERE event_id=$1 AND user_id=$2', [id, user.id]);
-        return send(res, 200, { ok: true, going: false });
-      }
-      const { rows: [{ c }] } = await db.query('SELECT count(*)::int AS c FROM rsvps WHERE event_id=$1', [id]);
-      if (c >= ev.cap) return send(res, 400, { error: 'That event is full.' });
-      await db.query('INSERT INTO rsvps (event_id, user_id) VALUES ($1,$2)', [id, user.id]);
-      return send(res, 200, { ok: true, going: true });
+      // Row lock on the event serialises sign-ups, so the last seat can't be double-booked.
+      const out = await db.tx(async (c) => {
+        const { rows: [ev] } = await c.query('SELECT cap FROM events WHERE id=$1 FOR UPDATE', [id]);
+        if (!ev) return { status: 404, error: 'Event not found.' };
+        const del = await c.query('DELETE FROM rsvps WHERE event_id=$1 AND user_id=$2', [id, user.id]);
+        if (del.rowCount) return { going: false };
+        const { rows: [{ n }] } = await c.query('SELECT count(*)::int AS n FROM rsvps WHERE event_id=$1', [id]);
+        if (n >= ev.cap) return { status: 400, error: 'That event is full.' };
+        await c.query('INSERT INTO rsvps (event_id, user_id) VALUES ($1,$2)', [id, user.id]);
+        return { going: true };
+      });
+      if (out.error) return send(res, out.status, { error: out.error });
+      return send(res, 200, { ok: true, going: out.going });
     }
     if (parts[0] === 'events' && parts.length === 2 && method === 'DELETE') {
       if (!adminOnly(user, res)) return;
@@ -320,7 +328,7 @@ module.exports = async (req, res) => {
       }
       if (action === 'approve' || action === 'decline') {
         if (!adminOnly(user, res)) return;
-        await db.query('UPDATE leaves SET status=$1 WHERE id=$2', [action === 'approve' ? 'approved' : 'declined', id]);
+        await db.query("UPDATE leaves SET status=$1 WHERE id=$2 AND status='pending'", [action === 'approve' ? 'approved' : 'declined', id]);
         return send(res, 200, { ok: true });
       }
       return send(res, 400, { error: 'Unknown action.' });
@@ -330,6 +338,7 @@ module.exports = async (req, res) => {
     if (path === '/resources') {
       if (method === 'GET') return send(res, 200, { resources: (await db.query('SELECT * FROM resources ORDER BY name')).rows });
       if (method === 'POST') {
+        if (!adminOnly(user, res)) return;
         const { name = '', kind = 'room' } = await readBody(req);
         if (!name.trim()) return send(res, 400, { error: 'Name a room or resource.' });
         await db.query('INSERT INTO resources (name, kind, created_by) VALUES ($1,$2,$3)', [name.trim(), kind, user.id]);
@@ -366,7 +375,7 @@ module.exports = async (req, res) => {
           if (!isAdmin(user) && entry.owner_id !== user.id && entry.subject_user_id !== user.id) {
             return send(res, 403, { error: 'You can only change entries you own.' });
           }
-          if (b.kind === 'moved' && (!b.newDate || !b.newStart || !b.newEnd)) return send(res, 400, { error: 'Pick the new date and time.' });
+          if (b.kind === 'moved' && (!b.newDate || !TIME_RE.test(b.newStart || '') || !TIME_RE.test(b.newEnd || '') || b.newEnd <= b.newStart)) return send(res, 400, { error: 'Pick the new date and time.' });
           await db.query(
             `INSERT INTO timetable_exceptions (entry_id, kind, exception_date, new_date, new_start_time, new_end_time, note, created_by)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
@@ -407,6 +416,9 @@ module.exports = async (req, res) => {
       if (method === 'POST') {
         const b = await readBody(req);
         if (!b.title || b.dayOfWeek == null || !b.start || !b.end) return send(res, 400, { error: 'Fill in the timetable entry.' });
+        if (!TIME_RE.test(b.start) || !TIME_RE.test(b.end) || b.end <= b.start) return send(res, 400, { error: 'Use 24-hour times (e.g. 09:00) with the end after the start.' });
+        if (!(Number(b.dayOfWeek) >= 0 && Number(b.dayOfWeek) <= 6)) return send(res, 400, { error: 'Pick a day.' });
+        if (b.subjectType === 'resource' && !Number(b.subjectResourceId)) return send(res, 400, { error: 'Pick a room or resource.' });
         const forPerson = b.subjectType !== 'resource';
         const subjectUserId = forPerson ? Number(b.subjectUserId || user.id) : null;
         const subjectResourceId = forPerson ? null : Number(b.subjectResourceId);
