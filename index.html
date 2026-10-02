@@ -254,11 +254,10 @@ function tabs(){
 }
 
 async function viewHome(u){
-  var ev = await api("/events");
+  var hr = await Promise.all([api("/events"), api("/notices"), api("/leaves")]);
+  var ev = hr[0], nr = hr[1], lv = hr[2];
   var going = ev.events.filter(function(e){ return (e.going||[]).indexOf(u.id)>-1; }).sort(function(a,b){ return a.event_date.localeCompare(b.event_date); });
-  var nr = await api("/notices");
   var n = nr.notices[0];
-  var lv = await api("/leaves");
   var pend = lv.mine.filter(function(l){ return l.status==="pending"; }).length;
   var adminPend = u.role==="admin" ? lv.pending.length : 0;
 
@@ -365,10 +364,8 @@ function nextDateForDay(dow){ // next upcoming date (today counts) that falls on
   var d = new Date(); var diff = (dow - d.getDay() + 7) % 7; d.setDate(d.getDate()+diff); return iso(d);
 }
 async function viewTimetable(u){
-  var tr = await api("/timetable");
-  var rr = await api("/resources");
-  var mr = await api("/members-list");
-  var xr = await api("/timetable/exceptions");
+  var tt = await Promise.all([api("/timetable"), api("/resources"), api("/members-list"), api("/timetable/exceptions")]);
+  var tr = tt[0], rr = tt[1], mr = tt[2], xr = tt[3];
 
   var holidays = {}; // date -> note
   var byEntry = {};  // entryId -> [exceptions]
@@ -406,6 +403,7 @@ async function viewTimetable(u){
     return '<li class="row" style="justify-content:space-between">'+label+(canUndo?'<button class="btn ghost sm" data-a="delexception" data-id="'+x.id+'">Undo</button>':'')+'</li>';
   }).join("")+'</ul></div>';
 
+  function movedInFor(date){ var out=[]; Object.keys(byEntry).forEach(function(eid){ (byEntry[eid]||[]).forEach(function(xx){ if(xx.kind==="moved" && xx.new_date===date){ var en=tr.entries.find(function(e){ return e.id===Number(eid); }); if(en) out.push({entry:en,x:xx}); } }); }); return out; }
   var days = DAYS.map(function(d,i){
     var date = nextDateForDay(i);
     var holidayNote = holidays[date];
@@ -413,10 +411,10 @@ async function viewTimetable(u){
     var body;
     if(holidayNote!==undefined){
       body = '<p class="pill wait">Holiday'+(holidayNote?': '+esc(holidayNote):'')+'</p>';
-    } else if(!items.length){
+    } else if(!items.length && !movedInFor(date).length){
       body = '<p class="muted">Nothing scheduled.</p>';
     } else {
-      body = '<ul class="list">'+items.map(function(e){
+      body = items.map(function(e){
         var cancelledHere = (byEntry[e.id]||[]).some(function(x){ return x.kind==="cancelled" && x.exception_date===date; });
         var movedHere = (byEntry[e.id]||[]).find(function(x){ return x.kind==="moved" && x.exception_date===date; });
         if(movedHere) return ''; // shown on its new date instead, below
@@ -435,15 +433,7 @@ async function viewTimetable(u){
           '</li>';
       }).join("");
       // moved-in entries landing on this date from elsewhere in the week
-      var movedIn = [];
-      Object.keys(byEntry).forEach(function(eid){
-        (byEntry[eid]||[]).forEach(function(x){
-          if(x.kind==="moved" && x.new_date===date){
-            var entry = tr.entries.find(function(e){ return e.id===Number(eid); });
-            if(entry) movedIn.push({entry:entry, x:x});
-          }
-        });
-      });
+      var movedIn = movedInFor(date);
       body += movedIn.map(function(m){
         var who = m.entry.subject_type==="person" ? esc(m.entry.subject_user_name||"Member") : esc(m.entry.subject_resource_name||"Resource");
         return '<li><div class="row" style="justify-content:space-between"><b>'+esc(m.entry.title)+'</b><span class="small muted">'+fmtTime(m.x.new_start_time)+' &ndash; '+fmtTime(m.x.new_end_time)+'</span></div><p class="small muted" style="margin:2px 0">'+who+' <span class="pill wait">Rescheduled</span></p></li>';
@@ -629,8 +619,8 @@ document.addEventListener("submit", async function(e){
       f.reset(); await render(); toast("Member added."); return;
     }
     if(kind==="invite"){
-      await api("/invite", {method:"POST", body: JSON.stringify({name:d.name, email:d.email})});
-      f.reset(); await render(); toast("Invite sent."); return;
+      var ir = await api("/invite", {method:"POST", body: JSON.stringify({name:d.name, email:d.email})});
+      f.reset(); await render(); toast(ir.emailSent===false ? "Account created, but the email failed to send." : "Invite sent."); return;
     }
     if(kind==="profile"){
       await api("/profile", {method:"POST", body: JSON.stringify({name:d.name, phone:d.phone, unit:d.unit, listed: !!d.listed})});
